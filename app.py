@@ -9,17 +9,12 @@ st.set_page_config(page_title="바이알 설비 스마트 유지보수", layout=
 st.title("🧪 바이알 제조실 소모품 및 설비 유지보수 시스템")
 st.caption("실시간 가동 시간 기준 수명 예측, 재고 현황 및 AI 부품 인식 레이더")
 
-# [보안 설정] Gemini API 키 설정 (AI 사진 인식을 위한 엔진)
-GEMINI_API_KEY = st.sidebar.text_input("🔑 Gemini API Key 입력", type="password", value="")
+GEMINI_API_KEY = "AQ.Ab8RN6KbbFX6p7CtrRVb43CEh4Yphj5CL8va4RH3Vr8uCbuVeQ" # 여기에 아까 구글 AI 스튜디오에서 발급받은 내 키를 따옴표 안에 통째로 넣기
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXDGTnMc8RO3wBVza0w10tR4GuYY_wUUXtfRKae2wYPJWWfCqHK5gRwJqHlEmiY66tR5gr70NJBbEJ/pub?gid=0&single=true&output=csv" # 내 구글 시트 CSV 주소 넣기
+
+# 고정 후 AI 엔진 깨우기 실행
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-
-# 1. 구글 시트 연동 설정 (회원님의 진짜 주소 입력 완료)
-SHEET_CSV_URL = st.sidebar.text_input(
-    "📊 구글 시트 CSV 링크 연결", 
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXDGTnMc8RO3wBVza0w10tR4GuYY_wUUXtfRKae2wYPJWWfCqHK5gRwJqHlEmiY66tR5gr70NJBbEJ/pub?gid=0&single=true&output=csv"
-)
-
 @st.cache_data(ttl=10) # 빠른 테스트를 위해 새로고침 주기 10초로 단축
 def load_data(url):
     try:
