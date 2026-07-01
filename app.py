@@ -16,8 +16,6 @@ st.markdown("""
     <style>
     .main { background-color: #F8FAFC !important; }
     .block-container { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; max-width: 96% !important; }
-    
-    /* 타이틀 라인 */
     h1 {
         color: #0F172A !important;
         font-weight: 800 !important;
@@ -27,8 +25,6 @@ st.markdown("""
         margin-bottom: 18px !important;
     }
     h2, h3, h4 { color: #1E293B !important; font-weight: 700 !important; margin-top: 1rem !important; }
-    
-    /* 현황판 메트릭 카드 블록 */
     div[data-testid="stMetric"] {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
@@ -39,8 +35,6 @@ st.markdown("""
     }
     div[data-testid="stMetricLabel"] p { font-size: 0.85rem !important; color: #475569 !important; font-weight: 700 !important; }
     div[data-testid="stMetricValue"] div { font-size: 1.7rem !important; font-weight: 800 !important; color: #0F172A !important; }
-    
-    /* 콘텐츠 박스 모듈화 */
     div[data-testid="stContainer"] {
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
@@ -49,8 +43,6 @@ st.markdown("""
         box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
         margin-bottom: 12px !important;
     }
-    
-    /* 실행 제어 버튼 전용 */
     .stButton>button { font-weight: 700 !important; border-radius: 5px !important; padding: 0.5rem 1rem !important; }
     button[data-baseweb="tab"] { font-size: 1.05rem !important; font-weight: 700 !important; color: #64748B !important; }
     button[aria-selected="true"] { color: #0284C7 !important; border-bottom-color: #0284C7 !important; }
@@ -78,7 +70,6 @@ def update_google_sheet(sheet_id, sheet_name, row_idx, col_idx, new_value):
     except:
         return False
 
-# 세션 내 실시간 정비 이력 타임라인 어레이 선언
 if "temp_logs" not in st.session_state:
     st.session_state.temp_logs = []
 
@@ -95,12 +86,25 @@ def load_data(url):
 df = load_data(SHEET_CSV_URL)
 
 if df is not None:
-    # 데이터 파싱 정의 (ID, 설비구분, 품목명, 재질, 수명(M), 보증시간, 현재시간, 여분재고)
-    c_id, c_mach, c_name, c_mat, c_life_m, c_life_h, c_curr_h, c_stock = df.columns[0:8]
+    col_list = list(df.columns)
     
-    # 💡 구글 시트 상 9번째 열(I열)에 '장착일' 헤더가 명명되어 있는지 동적 매핑 체크
-    c_install_date = df.columns[8] if len(df.columns) > 8 else None
-    c_manual = df.columns[-1]
+    # 🎯 구글 시트 정확한 열 매핑 (0부터 시작)
+    # 0(A):부품ID, 1(B):소속설비, 2(C):부품명, 3(D):재질, 4(E):수명개월, 5(F):권장수명시간, 6(G):현재운전시간
+    c_id = col_list[0]          
+    c_mach = col_list[1]        
+    c_name = col_list[2]        
+    c_mat = col_list[3]         
+    c_life_m = col_list[4]      
+    c_life_h = col_list[5]      
+    c_curr_h = col_list[6]      
+    
+    idx_manual = 7              # H열(인덱스 7): 정비 메뉴얼 (SOP)
+    idx_stock = 8               # I열(인덱스 8): 여분 수량 (재고)
+    idx_install = 9             # J열(인덱스 9): 최초 장착일
+
+    c_manual = col_list[idx_manual]
+    c_stock = col_list[idx_stock]
+    c_install_date = col_list[idx_install] if len(col_list) > 9 else col_list[-1]
 
     # 포맷 강제 형변환
     df[c_stock] = pd.to_numeric(df[c_stock], errors='coerce').fillna(0).astype(int)
@@ -112,14 +116,12 @@ if df is not None:
     df['남은시간'] = df[c_life_h] - df[c_curr_h]
     urgent_parts = df[(df['남은시간'] <= 200) | (df[c_stock] <= 2)]
     
-    # 🚨 최상단 예방보전 긴급 레이더
     if not urgent_parts.empty:
         with st.expander(f"⚠️ 현장 정비 레이더: 예방보전 임계점 도달 품목 {len(urgent_parts)}건 검출", expanded=True):
             alert_display = urgent_parts[[c_mach, c_name, '남은시간', c_stock]].copy()
             alert_display.columns = ['설비구분', '부품품목명', '잔여 수명(Hr)', '창고 실재고(EA)']
             st.dataframe(alert_display, use_container_width=True, hide_index=True)
 
-    # 📊 자산 메트릭스 팩트 관제판
     st.markdown("### 📊 실시간 공정 자산 현황")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("총 관리 소모품 종류", f"{len(df)} SKU")
@@ -129,7 +131,6 @@ if df is not None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # 모듈러 탭 메뉴 분할
     menu_tab1, menu_tab2 = st.tabs(["📋 소모품 자산 관제 및 신품 교체 제어", "📝 디지털 정비 일지 관리실"])
 
     with menu_tab1:
@@ -155,31 +156,37 @@ if df is not None:
             part_idx = df[df[c_name] == selected_part].index[0]
             part_info = df.loc[part_idx]
             
-            # 💡 [핵심 요청사항 반영 1] 부품 사양 및 장착/교체 마스터 타임 정보 요약 표출
             st.markdown("#### 📋 선택 부품 실시간 장착 및 자산 현황")
             with st.container():
-                # 구글 시트에 등록된 기존 장착일 검증 및 처리
-                if c_install_date and pd.notna(part_info[c_install_date]):
+                # J열 장착일 안전 처리 및 표시
+                if pd.notna(part_info[c_install_date]):
                     raw_install_date = str(part_info[c_install_date]).strip()
-                    st.markdown(f"**📅 현재 부품 최초 장착일 :** `{raw_install_date}`")
+                    st.markdown(f"**📅 현재 부품 최초 장착일 (J열) :** `{raw_install_date}`")
                     try:
                         parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
                     except:
                         parsed_start = datetime.date.today()
                 else:
-                    st.markdown("**📅 현재 부품 최초 장착일 :** `데이터베이스 내 기록 없음`")
+                    st.markdown("**📅 현재 부품 최초 장착일 (J열) :** `기록 없음`")
                     parsed_start = datetime.date.today()
 
-                # 한계 기한 예측 연산 (장착 연월일 + 보증 수명 개월수)
                 months_to_add = int(part_info[c_life_m])
                 year = parsed_start.year + (parsed_start.month + months_to_add - 1) // 12
                 month = (parsed_start.month + months_to_add - 1) % 12 + 1
                 calculated_replace_date = datetime.date(year, month, min(parsed_start.day, 28))
                 
-                # 가독성이 증대된 실시간 지표 출력
                 st.markdown(f"**⏳ 차기 정비 권장 교체일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}` (보증 주기: {months_to_add}개월)")
-                st.markdown(f"**📦 창고 실보관 여분 재고 :** `{part_info[c_stock]} EA`")
+                st.markdown(f"**📦 창고 실보관 여분 재고 (I열) :** `{part_info[c_stock]} EA`")
                 st.markdown(f"**⏱️ 가동 누적 측정 스펙 :** `{part_info[c_curr_h]} hr` / 한계 수명시간: `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
+                
+                st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+                
+                # 📄 [매뉴얼 노출 복구] H열 매뉴얼 주소 연동 링크 버튼을 현황판 박스 바로 내부 밑에 확실하게 표출
+                manual_url = part_info[c_manual]
+                if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
+                    st.link_button("📄 표준 정비 지침서(SOP) 열람 (H열)", manual_url.strip(), type="primary", use_container_width=True)
+                else:
+                    st.info("ℹ️ 현재 선택된 소모품은 등록된 H열 정비 매뉴얼 웹링크 주소가 없습니다.")
 
             # 수동 원격 보정 제어실 (백업용 서랍 배치)
             with st.expander("⚙️ 예외 변수 수동 수치 보정 익스팬더"):
@@ -187,19 +194,17 @@ if df is not None:
                 new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
                 if st.button("💾 데이터 보정 명령 동기화", use_container_width=True):
                     with st.spinner("서버 전송 중..."):
-                        update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 6, new_curr_h)
-                        update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 7, new_stock)
+                        update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 6, new_curr_h) # 7번째 열(G열) 현재운전시간 수정
+                        update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, idx_stock, new_stock) # 9번째 열(I열) 수량 수정
                         st.success("✅ 원격 마스터 수치 수동 보정 완료")
                         st.cache_data.clear()
                         st.rerun()
                         
         with col2:
-            # 💡 [핵심 요청사항 반영 2] 교체 날짜 지정 및 초기화 집행 원격 터미널 생성
             st.markdown("#### 🛠️ 현장 소모품 신품 교체 집행 제어실")
             with st.container():
                 st.warning(f"⚠️ **공정 작업 집행 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래에서 실제 교체 처리 날짜를 직접 선택한 뒤 집행 단추를 누르십시오. **[운전시간 0Hr 리셋, 여분재고 1개 차감, 최초 장착일 자동 갱신]**이 엑셀 시트에 영구 반영됩니다.")
                 
-                # 작업자가 교체 처리할 타깃 날짜 직접 선택하는 란
                 chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 집행 처리 일자 지정", datetime.date.today(), key="exec_date_picker")
                 
                 if st.button("🔧 지정을 확인하였으며 새 소모품 교체 확정 처리", type="primary", use_container_width=True):
@@ -207,25 +212,20 @@ if df is not None:
                         st.error("❌ 창고 내 여분 재고 자산이 부족(0개)하여 신품 마스터 교체 명령을 수행할 수 없습니다.")
                     else:
                         with st.spinner("중앙 ERP 스프레드시트 클라우드 원격 갱신 명령 전송 중..."):
-                            # 운전시간 리셋 및 재고 차감 스케줄 연산
                             reset_hours = 0
                             reduced_stock = int(part_info[c_stock]) - 1
                             formatted_install_date = chosen_execution_date.strftime("%Y-%m-%d")
                             
-                            # 구글 시트 원격 데이터 제어 주입
-                            update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 6, reset_hours)
-                            update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 7, reduced_stock)
+                            # 정확한 열 번호 타격 (6=G열, idx_stock=8(I열), idx_install=9(J열))
+                            update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 6, reset_hours)       
+                            update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, idx_stock, reduced_stock) 
+                            update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, idx_install, formatted_install_date) 
                             
-                            if c_install_date:
-                                # 구글 시트의 9번째 열(인덱스 8 -> I열)인 '장착일' 칸에 작업자가 지정한 날짜를 영구 기록
-                                update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 8, formatted_install_date)
-                            
-                            # 작업 이력 타임라인 피드 피드백 자동 삽입
                             auto_system_log = {
                                 "날짜": formatted_install_date,
                                 "부품명": selected_part,
                                 "작업자": "대시보드 원격 제어실 (시스템 자동)",
-                                "정비내용": f"[신품 교체 집행 완수] 지정하신 날짜 기준으로 장착일 세팅 완료. 런타임 초기화(0Hr) 및 여분 자고 자산 1EA 차감 완료."
+                                "정비내용": f"[신품 교체 집행 완수] 수량(I열) 1EA 차감 및 장착일(J열) 세팅 완료."
                             }
                             st.session_state.temp_logs.insert(0, auto_system_log)
                             
@@ -234,7 +234,6 @@ if df is not None:
                             st.cache_data.clear()
                             st.rerun()
 
-            # 내구 수명 바 시각화 영역
             st.markdown("##### ⏱️ 현재 소모품 실시간 수명 소모율 진행 바")
             current_hours = int(part_info[c_curr_h])
             max_hours = int(part_info[c_life_h])
@@ -252,7 +251,6 @@ if df is not None:
             with q_col2: st.code(qr_link)
 
     with menu_tab2:
-        # 일일 정비 일지 관리 (구조적 고립 설계로 작성 및 전송 100% 정상 작동 보장)
         st.markdown("### 📝 제조 설비 일일 정비·교체 일지 수동 기록")
         st.write("현장에서 수행한 일상 예방보전 내역 및 라인 조치 사항을 마스터 로그에 수동 기입하는 양식입니다.")
         
@@ -295,4 +293,4 @@ if df is not None:
                 log_df_display = pd.DataFrame(display_logs)
                 st.dataframe(log_df_display, use_container_width=True, hide_index=True)
 else:
-    st.info("중앙 스프레드시트 서버 데이터 통신망 연결 대기 중...")
+    st.info("구글 마스터 스프레드시트 데이터 통신망 연결 대기 중...")
