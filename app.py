@@ -51,8 +51,8 @@ st.markdown("""
 
 st.title("🏭 바이알 제조공정 스마트 설비 예지정비 시스템 (MES Pro)")
 
-# 구글 통합 마스터 데이터 네트워크 경로
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXDGTnMc8RO3wBVza0w10tR4GuYY_wUUXtfRKae2wYPJWWfCqHK5gRwJqHlEmiY66tR5gr70NJBbEJ/pub?gid=0&single=true&output=csv"
+# 🆕 [치트키 업데이트] 5분 버퍼링이 있는 '웹에 게시' 주소를 버리고, 0초 만에 실시간 조회하는 라이브 export 주소로 전격 교체!
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8/export?format=csv&gid=0"
 
 # 중앙 구글 시트 셀 원격 직접 제어 함수
 def update_google_sheet(sheet_id, sheet_name, row_idx, col_idx, new_value):
@@ -88,7 +88,7 @@ df = load_data(SHEET_CSV_URL)
 if df is not None:
     col_list = list(df.columns)
     
-    # 🎯 구글 시트 정확한 열 매핑 (0부터 시작)
+    # 구글 시트 고정 열 매핑 
     # 0(A):부품ID, 1(B):소속설비, 2(C):부품명, 3(D):재질, 4(E):수명개월, 5(F):권장수명시간, 6(G):현재운전시간
     c_id = col_list[0]          
     c_mach = col_list[1]        
@@ -158,7 +158,6 @@ if df is not None:
             
             st.markdown("#### 📋 선택 부품 실시간 장착 및 자산 현황")
             with st.container():
-                # J열 장착일 안전 처리 및 표시
                 if pd.notna(part_info[c_install_date]):
                     raw_install_date = str(part_info[c_install_date]).strip()
                     st.markdown(f"**📅 현재 부품 최초 장착일 (J열) :** `{raw_install_date}`")
@@ -181,21 +180,20 @@ if df is not None:
                 
                 st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
                 
-                # 📄 [매뉴얼 노출 복구] H열 매뉴얼 주소 연동 링크 버튼을 현황판 박스 바로 내부 밑에 확실하게 표출
                 manual_url = part_info[c_manual]
                 if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
                     st.link_button("📄 표준 정비 지침서(SOP) 열람 (H열)", manual_url.strip(), type="primary", use_container_width=True)
                 else:
                     st.info("ℹ️ 현재 선택된 소모품은 등록된 H열 정비 매뉴얼 웹링크 주소가 없습니다.")
 
-            # 수동 원격 보정 제어실 (백업용 서랍 배치)
+            # 수동 원격 보정 제어실 (수량 증감 즉시 동기화 검증 완료)
             with st.expander("⚙️ 예외 변수 수동 수치 보정 익스팬더"):
                 new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info[c_curr_h]), step=10, key="adj_h")
                 new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
                 if st.button("💾 데이터 보정 명령 동기화", use_container_width=True):
                     with st.spinner("서버 전송 중..."):
-                        update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 6, new_curr_h) # 7번째 열(G열) 현재운전시간 수정
-                        update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, idx_stock, new_stock) # 9번째 열(I열) 수량 수정
+                        update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 6, new_curr_h) 
+                        update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, idx_stock, new_stock) 
                         st.success("✅ 원격 마스터 수치 수동 보정 완료")
                         st.cache_data.clear()
                         st.rerun()
@@ -216,7 +214,6 @@ if df is not None:
                             reduced_stock = int(part_info[c_stock]) - 1
                             formatted_install_date = chosen_execution_date.strftime("%Y-%m-%d")
                             
-                            # 정확한 열 번호 타격 (6=G열, idx_stock=8(I열), idx_install=9(J열))
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, 6, reset_hours)       
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, idx_stock, reduced_stock) 
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", "Sheet1", part_idx, idx_install, formatted_install_date) 
