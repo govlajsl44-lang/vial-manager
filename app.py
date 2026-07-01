@@ -8,8 +8,7 @@ st.title("🧪 바이알 제조실 소모품 및 설비 유지보수 시스템")
 st.caption("실시간 가동 시간 기준 수명 예측, 재고 현황 및 정비 매뉴얼 조회")
 
 # 구글 시트 주소 고정
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXDGTnMc8R03wBVza0w10tR4GuyY_wUUxtFRKae2wYPJWWfCqHK5gRwJQhLEmiY66tR5gr70NJBbEJ/pub?gid=0&single=true&output=csv"
-
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXDGTnMc8RO3wBVza0w10tR4GuYY_wUUXtfRKae2wYPJWWfCqHK5gRwJqHlEmiY66tR5gr70NJBbEJ/pub?gid=0&single=true&output=csv
 @st.cache_data(ttl=5)
 def load_data(url):
     try:
