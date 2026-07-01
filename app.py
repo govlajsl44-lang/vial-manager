@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ⚙️ [오타 수정 완료] 전문 시스템 느낌을 주기 위한 맞춤형 CSS 주입
+# 전문 시스템 느낌을 주기 위한 맞춤형 CSS 주입
 st.markdown("""
     <style>
     /* 메인 배경 및 기본 폰트 가독성 설정 */
@@ -100,7 +100,7 @@ if df is not None:
     df['남은시간'] = df[c_life_h] - df[c_curr_h]
     urgent_parts = df[(df['남은시간'] <= 200) | (df[c_stock] <= 2)]
     
-    # 🚨 상단 위험 알림판 (전문 관제 프레임으로 변경)
+    # 🚨 상단 위험 알림판
     if not urgent_parts.empty:
         st.error(f"⚠️ **[현장 정비 레이더 알림]** 교체 주기 임박 및 보안 재고 부족 품목이 **{len(urgent_parts)}건** 감지되었습니다. 즉시 확인이 필요합니다.")
         with st.expander("🔍 위험 항목 리스트 요약 보기", expanded=False):
@@ -169,4 +169,66 @@ if df is not None:
 
             st.markdown("#### 📄 기술 지침 문서")
             manual_url = part_info[c_manual]
-            if pd.notna(manual_url) and str(manual_url).strip
+            # ⚙️ [오류 지점 원천 해결] 완벽한 문장 구조 및 쌍점(:) 처리 완료
+            if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
+                st.link_button("⚙️ SOP 및 표준 정비 지침서(Manual) 열람", manual_url.strip(), key="btn_manual", use_container_width=True)
+            else:
+                st.warning("⚠️ 등록된 정비 매뉴얼 표준 주소가 없습니다.")
+                
+        with col2:
+            st.markdown("#### ⏱️ 설비 내구 수명 및 예지 교체 타임라인")
+            
+            current_hours = int(part_info[c_curr_h])
+            max_hours = int(part_info[c_life_h])
+            remaining_hours = max_hours - current_hours
+            
+            progress_per = max(0, min(100, int((current_hours / max_hours) * 100))) if max_hours > 0 else 0
+            
+            with st.container(border=True):
+                st.markdown(f"**공정 누적 런타임 측정 수치:** `{current_hours} hr` / 한계 권장 수명: `{max_hours} hr`")
+                st.progress(progress_per, text=f"수명 소모율 (Life Consumption Rate): {progress_per}%")
+            
+            st.markdown("#### 📅 캘린더 기준 교체 한계 스케줄링")
+            with st.container(border=True):
+                start_date = st.date_input("해당 부품의 실제 장착일 (최초 가동일)", datetime.date.today(), key="input_date")
+                
+                months_to_add = int(part_info[c_life_m])
+                year = start_date.year + (start_date.month + months_to_add - 1) // 12
+                month = (start_date.month + months_to_add - 1) % 12 + 1
+                target_date = datetime.date(year, month, min(start_date.day, 28))
+                remaining_days = (target_date - datetime.date.today()).days
+                
+                st.markdown(f"**권장 운영 임계일 :** `{target_date.strftime('%Y-%m-%d')}` (운영 가능 잔여일: `D-{remaining_days}` 일)")
+
+            st.markdown("#### 🔬 종합 시스템 상태 진단 점검 결과")
+            if remaining_hours <= 200 or remaining_days <= 15:
+                st.error(f"❌ **🚨 CRITICAL (정비 교체 요망):** 수명 한계값에 도달했습니다. (잔여 {remaining_hours}시간 / 잔여 {remaining_days}일)")
+            else:
+                st.success(f"🟢 **STATUS: STABLE (정상 구동 유지 가능):** 안정권 내 가동 중입니다.")
+
+            st.markdown("#### 📱 설비 부착용 정비 QR코드 식별 태그")
+            with st.container(border=True):
+                app_url = "https://vial-manager-na6qyzsytdcsencg2jwr89.streamlit.app/"
+                encoded_machine = urllib.parse.quote(selected_machine)
+                encoded_part = urllib.parse.quote(selected_part)
+                qr_link = f"{app_url}?machine={encoded_machine}&part={encoded_part}"
+                qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={urllib.parse.quote(qr_link)}"
+                
+                q_col1, q_col2 = st.columns([1, 2.2])
+                with q_col1:
+                    st.image(qr_api_url, caption="SCANNABLE QR")
+                with q_col2:
+                    st.markdown("<p style='font-size:0.85rem; color:#64748B; margin-bottom:2px;'>현장 스마트 태그 맵핑 주소</p>", unsafe_allow_html=True)
+                    st.code(qr_link)
+                    st.caption("💡 해당 고유 QR 식별 코드를 라벨 프린터로 출력하여 실제 공정 설비 부품 보관함 외벽에 부착하십시오.")
+
+    with menu_tab2:
+        st.markdown("### 📝 제조 설비 일일 정비·교체 일지 등록")
+        st.write("현장에서 실행된 모든 예방 보전 작업 내역을 디지털 로그로 보관하며, 입력된 데이터는 클라우드 저장소에 축적됩니다.")
+        
+        log_col1, log_col2 = st.columns([1, 1.4], gap="large")
+        
+        with log_col1:
+            with st.container(border=True):
+                log_date = st.date_input("🗓️ 보전 작업 실행 일자", datetime.date.today(), key="log_date_input")
+                log_mach = st.selectbox("🏭 보전 대상 설비 구분", df[c_mach].unique(), key="log_mach_select")
