@@ -55,7 +55,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏭 바이알 제조공정 스마트 설비 예지정비 시스템 (MES Pro)")
+st.title("스마트 설비 예방정비 시스템")
 
 # 실시간 0초 동기화 조회용 라이브 export 주소
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8/export?format=csv&gid=0"
@@ -134,7 +134,7 @@ if df is not None:
 
     st.markdown("### 📊 실시간 공정 자산 현황")
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("총 관리 소모품 종류", f"{len(df)} SKU")
+    m1.metric("총 관리 소모품 종류", f"{len(df)} 종류")
     m2.metric("보안 재고 위험 (2개 이하)", f"{len(df[df[c_stock] <= 2])} 종")
     m3.metric("공정 라인 가동 상태", "NORMAL (안정 구동)")
     m4.metric("종합 시스템 동기화 기준", datetime.date.today().strftime("%Y-%m-%d"))
@@ -152,16 +152,16 @@ if df is not None:
         col1, col2 = st.columns([1, 1.2], gap="large")
         
         with col1:
-            st.markdown("#### 🔍 관제 소모품 라인 설정")
+            st.markdown("#### 설비, 소모품 설정")
             with st.container():
-                selected_machine = st.selectbox("🏭 대상 설비 라인 선택", df[c_mach].unique(), index=list(df[c_mach].unique()).index(default_machine), key="sl_mach")
+                selected_machine = st.selectbox("대상 설비 소모품 선택", df[c_mach].unique(), index=list(df[c_mach].unique()).index(default_machine), key="sl_mach")
                 filtered_df = df[df[c_mach] == selected_machine]
                 
                 default_part = query_params.get("part", filtered_df[c_name].unique()[0])
                 if default_part not in filtered_df[c_name].unique():
                     default_part = filtered_df[c_name].unique()[0]
                     
-                selected_part = st.selectbox("🔧 세부 부품 객체 선택", filtered_df[c_name].unique(), index=list(filtered_df[c_name].unique()).index(default_part), key="sl_part")
+                selected_part = st.selectbox("세부 부품 선택", filtered_df[c_name].unique(), index=list(filtered_df[c_name].unique()).index(default_part), key="sl_part")
             
             part_idx = df[df[c_name] == selected_part].index[0]
             part_info = df.loc[part_idx]
@@ -170,13 +170,13 @@ if df is not None:
             with st.container():
                 if pd.notna(part_info[c_install_date]):
                     raw_install_date = str(part_info[c_install_date]).strip()
-                    st.markdown(f"**📅 현재 부품 최초 장착일 (J열) :** `{raw_install_date}`")
+                    st.markdown(f"**📅 현재 부품 최초 장착일 :** `{raw_install_date}`")
                     try:
                         parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
                     except:
                         parsed_start = datetime.date.today()
                 else:
-                    st.markdown("**📅 현재 부품 최초 장착일 (J열) :** `기록 없음`")
+                    st.markdown("**📅 현재 부품 최초 장착일 :** `기록 없음`")
                     parsed_start = datetime.date.today()
 
                 months_to_add = int(part_info[c_life_m])
@@ -184,22 +184,22 @@ if df is not None:
                 month = (parsed_start.month + months_to_add - 1) % 12 + 1
                 calculated_replace_date = datetime.date(year, month, min(parsed_start.day, 28))
                 
-                st.markdown(f"**⏳ 차기 정비 권장 교체일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}` (보증 주기: {months_to_add}개월)")
-                st.markdown(f"**📦 창고 실보관 여분 재고 (I열) :** `{part_info[c_stock]} EA`")
-                st.markdown(f"**⏱️ 가동 누적 측정 스펙 :** `{part_info[c_curr_h]} hr` / 한계 수명시간: `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
+                st.markdown(f"**차기 정비 권장 교체일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}` (보증 주기: {months_to_add}개월)")
+                st.markdown(f"**여분 재고 :** `{part_info[c_stock]} EA`")
+                st.markdown(f"**가동 누적 측정 스펙 :** `{part_info[c_curr_h]} hr` / 한계 수명시간: `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
                 
                 st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
                 
                 manual_url = part_info[c_manual]
                 if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
-                    st.link_button("📄 표준 정비 지침서(SOP) 열람 (H열)", manual_url.strip(), type="primary", use_container_width=True)
+                    st.link_button("메뉴얼 열람", manual_url.strip(), type="primary", use_container_width=True)
                 else:
                     st.info("ℹ️ 현재 선택된 소모품은 등록된 H열 정비 매뉴얼 웹링크 주소가 없습니다.")
 
             # 수동 원격 보정 제어실
-            with st.expander("⚙️ 예외 변수 수동 수치 보정 익스팬더"):
+            with st.expander("예외 변수 수동 수치 보정 익스팬더"):
                 new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info[c_curr_h]), step=10, key="adj_h")
-                new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
+                new_stock = st.number_input("보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
                 if st.button("💾 데이터 보정 명령 동기화", use_container_width=True):
                     with st.spinner("서버 전송 중..."):
                         update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", SHEET_NAME, part_idx, 6, new_curr_h) 
@@ -209,13 +209,13 @@ if df is not None:
                         st.rerun()
                         
         with col2:
-            st.markdown("#### 🛠️ 현장 소모품 신품 교체 집행 제어실")
+            st.markdown("####  소모품 교체 현황 ")
             with st.container():
-                st.warning(f"⚠️ **공정 작업 집행 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래에서 실제 교체 처리 날짜를 직접 선택한 뒤 집행 단추를 누르십시오. **[운전시간 0Hr 리셋, 여분재고 1개 차감, 최초 장착일 자동 갱신]**이 엑셀 시트에 영구 반영됩니다.")
+                st.warning(f"⚠️ **작업 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래에서 실제 교체 처리 날짜를 직접 선택한 뒤 집행 단추를 누르십시오. **[운전시간 0Hr 리셋, 여분재고 1개 차감, 최초 장착일 자동 갱신]**이 엑셀 시트에 영구 반영됩니다.")
                 
-                chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 집행 처리 일자 지정", datetime.date.today(), key="exec_date_picker")
+                chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 처리 일자 지정", datetime.date.today(), key="exec_date_picker")
                 
-                if st.button("🔧 지정을 확인하였으며 새 소모품 교체 확정 처리", type="primary", use_container_width=True):
+                if st.button("지정을 확인하였으며 새 소모품 교체 확정 처리", type="primary", use_container_width=True):
                     if part_info[c_stock] <= 0:
                         st.error("❌ 창고 내 여분 재고 자산이 부족(0개)하여 신품 마스터 교체 명령을 수행할 수 없습니다.")
                     else:
