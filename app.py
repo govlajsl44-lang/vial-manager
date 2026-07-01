@@ -9,7 +9,7 @@ st.title("🧪 바이알 제조실 소모품 및 설비 유지보수 시스템")
 st.caption("실시간 수명 예측, 양방향 구글 시트 연동 및 부품별 QR코드 정비 레이블 지원")
 
 # 1. 조회용 링크 (웹 게시 CSV 주소)
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXDGTnMc8R03wBVza0w10tR4GuYY_wUUXtfRKae2wYPJWWfCqHK5gRwJqHlEmiY66tR5gr70NJBbEJ/pub?gid=0&single=true&output=csv"
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTXDGTnMc8RO3wBVza0w10tR4GuYY_wUUXtfRKae2wYPJWWfCqHK5gRwJqHlEmiY66tR5gr70NJBbEJ/pub?gid=0&single=true&output=csv"
 
 # 2. 수정용 링크 (회원님의 원본 시트 편집 주소)
 BASE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8"
