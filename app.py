@@ -6,7 +6,7 @@ import requests
 
 # 1. 하이브리드 반응형 페이지 레이아웃 정의
 st.set_page_config(
-    page_title="Vial Line Smart MES Pro", 
+    page_title="Smart MES Pro", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -16,7 +16,7 @@ st.markdown("""
     <style>
     /* 기본 배경 및 여백 설정 */
     .main { background-color: #F8FAFC !important; }
-    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; max-width: 98% !important; }
+    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }
     
     /* 타이틀 모바일 최적화 */
     h1 {
@@ -75,6 +75,18 @@ st.markdown("""
         margin-bottom: 10px;
         display: inline-block;
     }
+    
+    /* 💡 현재 메뉴 위치 인지용 상단 안내 배너 스타일 */
+    .menu-hero-banner {
+        background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+        color: #FFFFFF !important;
+        padding: 1rem !important;
+        border-radius: 8px !important;
+        margin-bottom: 15px !important;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+    }
+    .menu-hero-banner h3 { color: #FFFFFF !important; margin: 0 0 5px 0 !important; font-size: 1.2rem !important; }
+    .menu-hero-banner p { color: #E0F2FE !important; margin: 0 !important; font-size: 0.85rem !important; }
     
     /* 📱 미디어 쿼리: 모바일 화면(폭 768px 이하) 특화 반응형 레이아웃 보정 */
     @media (max-width: 768px) {
@@ -176,7 +188,7 @@ if df is not None:
     
     st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
     
-    # 📋 직관적인 아이콘이 포함된 4대 핵심 메뉴 탭 구성
+    # 📋 시각적 직관성을 강화한 4대 핵심 메뉴 탭 구성
     menu_tab1, menu_tab2, menu_tab3, menu_tab4 = st.tabs([
         "📋 1. 자산 관리 & 신품 교체", 
         "📝 2. 정비 일지 기록", 
@@ -185,9 +197,17 @@ if df is not None:
     ])
 
     # ----------------------------------------------------------------------
-    # [메뉴 1] 자산 관제 및 신품 교체 제어 탭 (UX 개편)
+    # [메뉴 1] 자산 관리 & 신품 교체 탭
     # ----------------------------------------------------------------------
     with menu_tab1:
+        # 💡 현재 위치 인지용 히어로 배너 주입
+        st.markdown("""
+            <div class='menu-hero-banner'>
+                <h3>📋 소모품 자산 관제 및 신품 교체실</h3>
+                <p>설비별 부품의 남은 수명을 실시간으로 모니터링하고, 신품 교체 시 마스터 데이터를 동기화하는 공간입니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
         query_params = st.query_params
         default_machine = query_params.get("machine", df[c_mach].unique()[0])
         if default_machine not in df[c_mach].unique():
@@ -214,13 +234,13 @@ if df is not None:
             with st.container():
                 if pd.notna(part_info[c_install_date]):
                     raw_install_date = str(part_info[c_install_date]).strip()
-                    st.markdown(f"🗓️ **최초 장착일 :** `{raw_install_date}`")
+                    st.markdown(f"📅 **최초 장착일 :** `{raw_install_date}`")
                     try:
                         parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
                     except:
                         parsed_start = datetime.date.today()
                 else:
-                    st.markdown("🗓️ **최초 장착일 :** `기록 없음`")
+                    st.markdown("📅 **최초 장착일 :** `기록 없음`")
                     parsed_start = datetime.date.today()
 
                 months_to_add = int(part_info[c_life_m])
@@ -228,19 +248,18 @@ if df is not None:
                 month = (parsed_start.month + months_to_add - 1) % 12 + 1
                 calculated_replace_date = datetime.date(year, month, min(parsed_start.day, 28))
                 
-                # 명확한 가시성을 확보한 상태 스펙 스택 배치
                 st.markdown(f"⏳ **차기 권장 교체일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}` (주기: {months_to_add}개월)")
                 st.markdown(f"📦 **창고 보관 여분 재고 :** `{part_info[c_stock]} EA`")
-                st.markdown(f"⏱️ **가동 런타임:** `{part_info[c_curr_h]} hr` / 한계 `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
+                st.markdown(f"⏱️ **가동 런타임 :** `{part_info[c_curr_h]} hr` / 한계 `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
                 
                 manual_url = part_info[c_manual]
                 if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
                     st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                    st.link_button("📄 정비 메뉴얼", manual_url.strip(), type="primary", use_container_width=True)
+                    st.link_button("📄 표준 정비 매뉴얼 열람", manual_url.strip(), type="primary", use_container_width=True)
 
             with st.expander("⚙️ 예외 변수 수동 수치 보정 (필요시에만 사용)"):
                 new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info[c_curr_h]), step=10, key="adj_h")
-                new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
+                new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[stock := c_stock]), step=1, key="adj_s")
                 if st.button("💾 데이터 보정 명령 동기화", use_container_width=True):
                     with st.spinner("보전 서버 통신 중..."):
                         update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, 6, new_curr_h) 
@@ -250,12 +269,12 @@ if df is not None:
                         st.rerun()
                         
         with col2:
-            st.markdown("<span class='section-title'>3️⃣ 소모품 교체 일자</span>", unsafe_allow_html=True)
+            st.markdown("<span class='section-title'>3️⃣ 소모품 교체 및 자산 리셋</span>", unsafe_allow_html=True)
             with st.container():
                 st.warning(f"⚠️ **작업 확정 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래 단추를 누르면 **[운전시간 0Hr 리셋 / 여분재고 1개 차감 / 장착일 오늘 자동 갱신]**이 구글 시트에 영구 반영됩니다.")
                 chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 날짜 지정", datetime.date.today(), key="exec_date_picker")
                 
-                if st.button("교체 확정", type="primary", use_container_width=True):
+                if st.button("교체 확정 처리 완료", type="primary", use_container_width=True):
                     if part_info[c_stock] <= 0:
                         st.error("❌ 창고 내 여분 재고 자산이 부족(0개)하여 교체 명령을 수행할 수 없습니다.")
                     else:
@@ -280,7 +299,7 @@ if df is not None:
                             st.cache_data.clear()
                             st.rerun()
 
-            st.markdown("##### ⏱️ 현재 소모품 실시간 수명")
+            st.markdown("##### ⏱ ... 실시간 수명 소모 진행 바")
             current_hours = int(part_info[c_curr_h])
             max_hours = int(part_info[c_life_h])
             progress_per = max(0, min(100, int((current_hours / max_hours) * 100))) if max_hours > 0 else 0
@@ -298,10 +317,17 @@ if df is not None:
             with q_col2: st.code(qr_link)
 
     # ----------------------------------------------------------------------
-    # [메뉴 2] 디지털 정비 일지 관리실 탭 (UX 개편)
+    # [메뉴 2] 정비 일지 기록 탭
     # ----------------------------------------------------------------------
     with menu_tab2:
-        st.markdown("### 📝 제조 설비 일일 정비·교체 일지")
+        # 💡 현재 위치 인지용 히어로 배너 주입
+        st.markdown("""
+            <div class='menu-hero-banner'>
+                <h3>📝 제조 설비 일일 정비·교체 일지 관리실</h3>
+                <p>현장에서 수행한 일상 보전 내역, 고장 처리 및 유격 조정 조치 사항을 수동 기입하고 누적 타임라인을 확인합니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
         log_col1, log_col2 = st.columns([1, 1.2], gap="medium")
         
         with log_col1:
@@ -330,7 +356,7 @@ if df is not None:
                         st.rerun()
         
         with log_col2:
-            st.markdown("<span class='section-title'>2️⃣ 최근 공정 예방 보전 이력 피드백</span>", unsafe_allow_html=True)
+            st.markdown("<span class='section-title'>2️⃣ 최근 공정 예방 보전 이력 피드백 (실시간)</span>", unsafe_allow_html=True)
             with st.container():
                 base_logs = [
                     {"날짜": "2026-07-01", "부품명": "충전 피스톤 실링", "작업자": "시스템관리자", "정비내용": "스마트 예지정비 모니터링 제어실 연동 상태 정상 작동 중."}
@@ -340,11 +366,16 @@ if df is not None:
                 st.dataframe(log_df_display, use_container_width=True, hide_index=True)
 
     # ----------------------------------------------------------------------
-    # [메뉴 3] 📸 AI 비전 현장 진단 및 부품 식별 탭 (UX 개편)
+    # [메뉴 3] AI 카메라 진단 탭
     # ----------------------------------------------------------------------
     with menu_tab3:
-        st.subheader("📸 AI 실시간 스마트 현장 진단 및 부품 식별")
-        st.write("공장 부품이나 마모된 설비 부위를 카메라로 촬영하거나 사진을 업로드하세요.")
+        # 💡 현재 위치 인지용 히어로 배너 주입
+        st.markdown("""
+            <div class='menu-hero-banner'>
+                <h3>📸 AI 실시간 스마트 현장 비전 진단실</h3>
+                <p>마모된 부품이나 외관 손상이 의심되는 기계 부위를 촬영하십시오. 고성능 비전 엔진이 균열 및 오염도를 즉시 진단합니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
         
         if "GEMINI_API_KEY" in st.secrets:
             vision_api_key = st.secrets["GEMINI_API_KEY"]
@@ -412,11 +443,16 @@ if df is not None:
                             st.error(f"❌ AI 분석 모듈 연동 중 오류가 발생했습니다: {error_msg}")
 
     # ----------------------------------------------------------------------
-    # [메뉴 4] 💬 AI 현장 정비 지식 챗봇 탭 (UX 개편)
+    # [메뉴 4] AI 정비 챗봇 탭
     # ----------------------------------------------------------------------
     with menu_tab4:
-        st.subheader("정비 챗봇")
-        st.write("현장 공정 트러블슈팅, 기계공학 조치 지식, 볼트 규격 체결값 등 베테랑 마스터의 가이드가 필요할 때 질문하세요.")
+        # 💡 현재 위치 인지용 히어로 배너 주입
+        st.markdown("""
+            <div class='menu-hero-banner'>
+                <h3>💬 AI 베테랑 선임 정비원 24hr 지식 대화방</h3>
+                <p>설비 구동부 트러블슈팅, 기계공학 조치 지식, 볼트 체결 토크값 등 현장 애로사항에 대한 솔루션을 실시간으로 논의합니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
         
         chat_api_key = st.secrets.get("GEMINI_API_KEY", "")
             
@@ -428,8 +464,7 @@ if df is not None:
                 }
             ]
             
-        st.markdown("<span class='section-title'>💬 1:1 정비 통신창</span>", unsafe_allow_html=True)
-        # 스크롤 피드를 감싸는 대화 카드 컨테이너 배치
+        st.markdown("<span class='section-title'>💬 1:1 정비 기술 무전창</span>", unsafe_allow_html=True)
         with st.container():
             for msg in st.session_state.chat_history:
                 with st.chat_message(msg["role"]):
@@ -473,4 +508,4 @@ if df is not None:
                         except Exception as chat_err:
                             st.error(f"❌ 챗봇 엔진 작동 오류: {chat_err}")
 else:
-    st.info("구글 마스터 스프레드시트 데이터 통신망 연결 대기 중...")
+    st.info("구글 마스터 스프레드를 연결하는 중...")
