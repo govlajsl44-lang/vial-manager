@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 📱 모바일 가시성 극대화를 위한 프리미엄 하이브리드 CSS 테마 주입
+# 📱 모바일 및 웹 동시 최적화 프리미엄 하이브리드 CSS 테마 주입
 st.markdown("""
     <style>
     /* 기본 배경 및 여백 설정 */
@@ -46,10 +46,10 @@ st.markdown("""
     div[data-testid="stContainer"] {
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        padding: 1rem !important;
+        padding: 1.2rem !important;
         border-radius: 8px !important;
         box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important;
-        margin-bottom: 10px !important;
+        margin-bottom: 15px !important;
     }
     
     /* 모바일 엄지손가락 터치 전용 버튼 스타일 고도화 */
@@ -63,6 +63,18 @@ st.markdown("""
     /* 상단 탭 모바일 스크롤 지원 및 폰트 강조 */
     button[data-baseweb="tab"] { font-size: 0.95rem !important; font-weight: 700 !important; color: #64748B !important; }
     button[aria-selected="true"] { color: #0284C7 !important; border-bottom-color: #0284C7 !important; }
+    
+    /* 섹션 구분을 위한 서브 배너 스타일 */
+    .section-title {
+        background-color: #E0F2FE;
+        color: #0369A1;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 10px;
+        display: inline-block;
+    }
     
     /* 📱 미디어 쿼리: 모바일 화면(폭 768px 이하) 특화 반응형 레이아웃 보정 */
     @media (max-width: 768px) {
@@ -116,7 +128,7 @@ def load_data(url):
         df.columns = df.columns.str.strip()
         return df
     except Exception as e:
-        st.error(f"마스터 허브 접속 대기 실패: {e}")
+        st.error(f"마스터 허브 라이브 데이터 로딩 실패: {e}")
         return None
 
 df = load_data(SHEET_CSV_URL)
@@ -149,30 +161,32 @@ if df is not None:
     urgent_parts = df[(df['남은시간'] <= 200) | (df[c_stock] <= 2)]
     
     if not urgent_parts.empty:
-        with st.expander(f"⚠️ 위험 레이더: 정비 임계 품목 {len(urgent_parts)}건 검출", expanded=True):
+        with st.expander(f"🚨 위험보전 알림: 정비 임계 품목 {len(urgent_parts)}건 검출", expanded=True):
             alert_display = urgent_parts[[c_mach, c_name, '남은시간', c_stock]].copy()
             alert_display.columns = ['설비명', '부품명', '잔여(Hr)', '재고(EA)']
             st.dataframe(alert_display, use_container_width=True, hide_index=True)
 
-    # 📊 자산 현황판 배치 (모바일에서는 세로 피드로 이쁘게 스택됨)
+    # 📊 상단 실시간 공정 자산 대시보드
     st.markdown("### 📊 실시간 공정 지표")
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("총 관리 소모품", f"{len(df)} SKU")
-    m2.metric("보안재고 위험군", f"{len(df[df[c_stock] <= 2])} 종")
-    m3.metric("라인 가동 상태", "NORMAL")
-    m4.metric("동기화 기준일", datetime.date.today().strftime("%Y-%m-%d"))
+    m1.metric("총 관리 소모품 종류", f"{len(df)} SKU")
+    m2.metric("보안재고 위험군 (2개 이하)", f"{len(df[df[c_stock] <= 2])} 종")
+    m3.metric("라인 가동 상태", "NORMAL (안정 구동)")
+    m4.metric("시스템 동기화 기준", datetime.date.today().strftime("%Y-%m-%d"))
     
     st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
     
-    # 📋 4대 핵심 메뉴 탭 구성
+    # 📋 직관적인 아이콘이 포함된 4대 핵심 메뉴 탭 구성
     menu_tab1, menu_tab2, menu_tab3, menu_tab4 = st.tabs([
-        "📋 자산 관제 & 교체", 
-        "📝 정비 일지 관리", 
-        "📸 AI 비전 현장 진단",
-        "💬 AI 정비 지식 챗봇"
+        "📋 1. 자산 관제 & 신품 교체", 
+        "📝 2. 일일 정비 일지 기록", 
+        "📸 3. AI 비전 현장 객체 진단",
+        "💬 4. AI 베테랑 정비 지식 챗봇"
     ])
 
-    # 탭 1: 자산 관제 및 신품 교체 제어
+    # ----------------------------------------------------------------------
+    # [메뉴 1] 자산 관제 및 신품 교체 제어 탭 (UX 개편)
+    # ----------------------------------------------------------------------
     with menu_tab1:
         query_params = st.query_params
         default_machine = query_params.get("machine", df[c_mach].unique()[0])
@@ -182,7 +196,7 @@ if df is not None:
         col1, col2 = st.columns([1, 1.2], gap="medium")
         
         with col1:
-            st.markdown("#### 🔍 소모품 라인 필터")
+            st.markdown("<span class='section-title'>1️⃣ 설비 및 부품 선택</span>", unsafe_allow_html=True)
             with st.container():
                 selected_machine = st.selectbox("🏭 대상 설비 라인 선택", df[c_mach].unique(), index=list(df[c_mach].unique()).index(default_machine), key="sl_mach")
                 filtered_df = df[df[c_mach] == selected_machine]
@@ -191,22 +205,22 @@ if df is not None:
                 if default_part not in filtered_df[c_name].unique():
                     default_part = filtered_df[c_name].unique()[0]
                     
-                selected_part = st.selectbox("🔧 세부 부품 선택", filtered_df[c_name].unique(), index=list(filtered_df[c_name].unique()).index(default_part), key="sl_part")
+                selected_part = st.selectbox("🔧 세부 점검 부품 선택", filtered_df[c_name].unique(), index=list(filtered_df[c_name].unique()).index(default_part), key="sl_part")
             
             part_idx = df[df[c_name] == selected_part].index[0]
             part_info = df.loc[part_idx]
             
-            st.markdown("#### 📋 부품 실시간 스펙 (모바일 최적화)")
+            st.markdown("<span class='section-title'>2️⃣ 선택 부품 실시간 상태 조회</span>", unsafe_allow_html=True)
             with st.container():
                 if pd.notna(part_info[c_install_date]):
                     raw_install_date = str(part_info[c_install_date]).strip()
-                    st.markdown(f"**📅 최초 장착일 (J열) :** `{raw_install_date}`")
+                    st.markdown(f"🗓️ **최초 장착일 (J열) :** `{raw_install_date}`")
                     try:
                         parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
                     except:
                         parsed_start = datetime.date.today()
                 else:
-                    st.markdown("**📅 최초 장착일 (J열) :** `기록 없음`")
+                    st.markdown("🗓️ **최초 장착일 (J열) :** `기록 없음`")
                     parsed_start = datetime.date.today()
 
                 months_to_add = int(part_info[c_life_m])
@@ -214,17 +228,17 @@ if df is not None:
                 month = (parsed_start.month + months_to_add - 1) % 12 + 1
                 calculated_replace_date = datetime.date(year, month, min(parsed_start.day, 28))
                 
-                # 가시성 보정을 위한 이모지 불릿 리스트 디자인
-                st.markdown(f"* **⏳ 권장 교체 예정일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}` ({months_to_add}개월 주기)")
-                st.markdown(f"* **📦 창고 여분 재고 (I열) :** `{part_info[c_stock]} EA`")
-                st.markdown(f"* **⏱️ 누적 가동 스펙 :** `{part_info[c_curr_h]} hr` / 한계 `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
+                # 명확한 가시성을 확보한 상태 스펙 스택 배치
+                st.markdown(f"⏳ **차기 권장 교체일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}` (주기: {months_to_add}개월)")
+                st.markdown(f"📦 **창고 보관 여분 재고 :** `{part_info[c_stock]} EA`")
+                st.markdown(f"⏱️ **가동 런타임 스펙 :** `{part_info[c_curr_h]} hr` / 한계 `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
                 
                 manual_url = part_info[c_manual]
                 if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
                     st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
                     st.link_button("📄 표준 정비 SOP 지침서 열람 (H열)", manual_url.strip(), type="primary", use_container_width=True)
 
-            with st.expander("⚙️ 예외 변수 수동 수치 보정"):
+            with st.expander("⚙️ 예외 변수 수동 수치 보정 (필요시에만 사용)"):
                 new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info[c_curr_h]), step=10, key="adj_h")
                 new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
                 if st.button("💾 데이터 보정 명령 동기화", use_container_width=True):
@@ -236,16 +250,16 @@ if df is not None:
                         st.rerun()
                         
         with col2:
-            st.markdown("#### 🛠️ 신품 교체 집행 제어실")
+            st.markdown("<span class='section-title'>3️⃣ 현장 소모품 신품 교체 집행</span>", unsafe_allow_html=True)
             with st.container():
-                st.info(f"**[{selected_part}]** 신품 교체 집행 시 **[가동시간 0Hr 리셋 / 재고 1개 차감 / 장착일 오늘로 자동 갱신]**이 구글 엑셀 시트에 즉시 영구 반영됩니다.")
-                chosen_execution_date = st.date_input("📆 실제 신품 교체 처리 일자", datetime.date.today(), key="exec_date_picker")
+                st.warning(f"⚠️ **작업 확정 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래 단추를 누르면 **[운전시간 0Hr 리셋 / 여분재고 1개 차감 / 장착일 오늘 자동 갱신]**이 구글 시트에 영구 반영됩니다.")
+                chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 집행 날짜 지정", datetime.date.today(), key="exec_date_picker")
                 
-                if st.button("🔧 새 소모품 교체 확정 처리 (영구 반영)", type="primary", use_container_width=True):
+                if st.button("🔧 지정을 확인하였으며 새 소모품 교체 확정 처리", type="primary", use_container_width=True):
                     if part_info[c_stock] <= 0:
-                        st.error("❌ 창고 내 여분 재고 자산이 부족하여 교체 처리를 집행할 수 없습니다.")
+                        st.error("❌ 창고 내 여분 재고 자산이 부족(0개)하여 신품 마스터 교체 명령을 수행할 수 없습니다.")
                     else:
-                        with st.spinner("중앙 클라우드 원격 갱신 명령 전송 중..."):
+                        with st.spinner("중앙 ERP 스프레드시트 클라우드 원격 갱신 중..."):
                             reset_hours = 0
                             reduced_stock = int(part_info[c_stock]) - 1
                             formatted_install_date = chosen_execution_date.strftime("%Y-%m-%d")
@@ -257,51 +271,53 @@ if df is not None:
                             auto_system_log = {
                                 "날짜": formatted_install_date,
                                 "부품명": selected_part,
-                                "작업자": "시스템자동",
-                                "정비내용": f"[신품교체] 수량 1EA 차감 및 장착일 세팅 완료."
+                                "작업자": "대시보드자동",
+                                "정비내용": f"[신품 교체 완수] 수량 1EA 차감 및 장착일 세팅 완료."
                             }
                             st.session_state.temp_logs.insert(0, auto_system_log)
-                            st.success(f"🎉 [{selected_part}] 신품 장착 처리 완수!")
+                            st.success(f"🎉 [{selected_part}] 신품 장착 처리 및 마스터 스케줄링 리셋이 완벽하게 완수되었습니다.")
                             st.balloons()
                             st.cache_data.clear()
                             st.rerun()
 
-            st.markdown("##### ⏱️ 수명 소모율")
+            st.markdown("##### ⏱️ 현재 소모품 실시간 수명 소모율 진행 바")
             current_hours = int(part_info[c_curr_h])
             max_hours = int(part_info[c_life_h])
             progress_per = max(0, min(100, int((current_hours / max_hours) * 100))) if max_hours > 0 else 0
-            st.progress(progress_per, text=f"진척도: {progress_per}%")
+            st.progress(progress_per, text=f"수명 소모 진척도: {progress_per}%")
 
             st.markdown("---")
-            st.subheader("📱 하드웨어 QR코드 라벨")
+            st.subheader("📱 하드웨어 식별용 스마트 QR코드 라벨")
             app_url = "https://vial-manager-na6qyzsytdcsencg2jwr89.streamlit.app/"
             qr_link = f"{app_url}?machine={urllib.parse.quote(selected_machine)}&part={urllib.parse.quote(selected_part)}"
             qr_link_enc = urllib.parse.quote(qr_link)
             qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=130x130&data={qr_link_enc}"
             
             q_col1, q_col2 = st.columns([1, 2.5])
-            with q_col1: st.image(qr_api_url, caption="현장 정비 태그 QR")
+            with q_col1: st.image(qr_api_url, caption="정비 태그 QR")
             with q_col2: st.code(qr_link)
 
-    # 탭 2: 디지털 정비 일지 관리실
+    # ----------------------------------------------------------------------
+    # [메뉴 2] 디지털 정비 일지 관리실 탭 (UX 개편)
+    # ----------------------------------------------------------------------
     with menu_tab2:
-        st.markdown("### 📝 제조 설비 일일 정비 일지 기록")
+        st.markdown("### 📝 제조 설비 일일 정비·교체 일지 기록실")
         log_col1, log_col2 = st.columns([1, 1.2], gap="medium")
         
         with log_col1:
+            st.markdown("<span class='section-title'>1️⃣ 정비 내역 서식 작성</span>", unsafe_allow_html=True)
             with st.container():
-                st.markdown("##### 🖊️ 이력 등록 양식")
-                log_date = st.date_input("작업 일자", datetime.date.today(), key="m_log_date")
-                log_mach = st.selectbox("정비 설비 선택", df[c_mach].unique(), key="m_log_mach")
+                log_date = st.date_input("정비 및 작업 실행 일자", datetime.date.today(), key="m_log_date")
+                log_mach = st.selectbox("정비 대상 설비 선택", df[c_mach].unique(), key="m_log_mach")
                 filtered_log_df = df[df[c_mach] == log_mach]
-                log_part = st.selectbox("정비 부품 선택", filtered_log_df[c_name].unique(), key="m_log_part")
-                log_worker = st.text_input("작업 정비원 성명", placeholder="보전팀 담당자 명 기입", key="m_log_worker")
-                log_content = st.text_area("상세 정비 내역", placeholder="조치 내역 기술", key="m_log_content")
+                log_part = st.selectbox("정비 처리 부품 선택", filtered_log_df[c_name].unique(), key="m_log_part")
+                log_worker = st.text_input("작업 정비원 성명 기입", placeholder="예: 보전팀 홍길동 과장", key="m_log_worker")
+                log_content = st.text_area("상세 정비 작업 사역 내역 기술", placeholder="예: 구동 기어 유격 측정 후 중심 정렬 및 볼트 고정 록타이트 처리.", key="m_log_content")
                 
-                st.markdown("<div style='margin-top:5px;'></div>", unsafe_allow_html=True)
-                if st.button("🚀 정비 이력 로그 서버 전송", type="primary", use_container_width=True, key="m_log_submit_btn"):
+                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+                if st.button("🚀 정비 이력 로그 중앙 서버 전송", type="primary", use_container_width=True, key="m_log_submit_btn"):
                     if not log_worker or not log_content:
-                        st.warning("⚠️ 정비 책임자 명과 상세 내용을 기술해 주십시오.")
+                        st.warning("⚠️ 입력창에 누락된 데이터가 있습니다. 정비 책임자 명과 상세 내용을 기술해 주십시오.")
                     else:
                         new_log_entry = {
                             "날짜": log_date.strftime("%Y-%m-%d"),
@@ -310,51 +326,55 @@ if df is not None:
                             "정비내용": log_content
                         }
                         st.session_state.temp_logs.insert(0, new_log_entry)
-                        st.success(f"✅ 정비 데이터 이력 세팅 완료!")
+                        st.success(f"✅ [{log_part}] 정비 데이터 이력이 타임라인에 안전하게 세팅되었습니다.")
                         st.rerun()
         
         with log_col2:
-            st.markdown("#### 📋 최근 공정 정비 이력 타임라인")
+            st.markdown("<span class='section-title'>2️⃣ 최근 공정 예방 보전 이력 피드백</span>", unsafe_allow_html=True)
             with st.container():
                 base_logs = [
-                    {"날짜": "2026-07-01", "부품명": "충전 피스톤 실링", "작업자": "관리자", "정비내용": "스마트 예지정비 관제실 시스템 가동 시작."}
+                    {"날짜": "2026-07-01", "부품명": "충전 피스톤 실링", "작업자": "시스템관리자", "정비내용": "스마트 예지정비 모니터링 제어실 연동 상태 정상 작동 중."}
                 ]
                 display_logs = st.session_state.temp_logs + base_logs
                 log_df_display = pd.DataFrame(display_logs)
                 st.dataframe(log_df_display, use_container_width=True, hide_index=True)
 
-    # 탭 3: 📸 AI 비전 현장 진단 및 부품 식별
+    # ----------------------------------------------------------------------
+    # [메뉴 3] 📸 AI 비전 현장 진단 및 부품 식별 탭 (UX 개편)
+    # ----------------------------------------------------------------------
     with menu_tab3:
-        st.subheader("📸 AI 실시간 현장 진단 및 부품 식별")
+        st.subheader("📸 AI 실시간 스마트 현장 진단 및 부품 식별")
+        st.write("공장 부품이나 마모된 설비 부위를 카메라로 촬영하거나 사진을 업로드하세요.")
         
         if "GEMINI_API_KEY" in st.secrets:
             vision_api_key = st.secrets["GEMINI_API_KEY"]
-            st.success("🟢 클라우드 공용 AI 보안 엔진 연동 완료")
+            st.success("🟢 클라우드 공용 AI 보안 엔진이 안전하게 연동되어 있습니다. (키 입력 불필요)")
         else:
             vision_api_key = ""
-            st.error("⚠️ [알림] Secrets 메뉴에 GEMINI_API_KEY를 등록해 주세요.")
+            st.error("⚠️ [알림] 공용으로 사용하시려면 Streamlit Settings -> Secrets 메뉴에 GEMINI_API_KEY를 등록해 주세요.")
         
         v_col1, v_col2 = st.columns([1, 1.2], gap="medium")
         
         with v_col1:
-            st.markdown("##### 📷 하드웨어 이미지 소스 입력")
-            input_mode = st.radio("사진 획득 방식을 고르세요", ["📱 모바일 카메라로 직접 촬영", "📁 갤러리 파일 업로드"], key="vision_mode")
-            
-            captured_file = None
-            if input_mode == "📱 모바일 카메라로 직접 촬영":
-                captured_file = st.camera_input("부품 외관 촬영")
-            else:
-                captured_file = st.file_uploader("부품 사진 이미지 선택", type=["jpg", "jpeg", "png"], key="file_vision")
+            st.markdown("<span class='section-title'>1️⃣ 하드웨어 이미지 입력 소스</span>", unsafe_allow_html=True)
+            with st.container():
+                input_mode = st.radio("사진 획득 방식을 고르세요", ["📱 모바일 카메라로 직접 촬영", "📁 갤러리/컴퓨터 파일 업로드"], key="vision_mode")
                 
-            if captured_file is not None:
-                st.image(captured_file, caption="🛠️ AI 분석 대상 이미지 객체", width=360)
+                captured_file = None
+                if input_mode == "📱 모바일 카메라로 직접 촬영":
+                    captured_file = st.camera_input("부품 외관 비추기")
+                else:
+                    captured_file = st.file_uploader("부품 사진 이미지 선택 (JPG, PNG)", type=["jpg", "jpeg", "png"], key="file_vision")
+                    
+                if captured_file is not None:
+                    st.image(captured_file, caption="🛠️ AI 분석 대상 이미지 객체", width=360)
         
         with v_col2:
-            st.markdown("##### 🤖 AI 비전 실시간 정비 권고안 리포트")
+            st.markdown("<span class='section-title'>2️⃣ 🤖 AI 비전 실시간 진단 및 정비 권고안</span>", unsafe_allow_html=True)
             if captured_file is None:
-                st.info("💡 안내: 사진을 등록하시면 실시간 분석 대기 모드로 전환됩니다.")
+                st.info("💡 안내: 왼쪽 입력 장치에서 카메라로 사진을 찍거나 파일을 등록하시면 실시간 분석 대기 모드로 전환됩니다.")
             else:
-                if st.button("🚀 이미지 비전 해독 시작", type="primary", use_container_width=True):
+                if st.button("🚀 이미지 비전 해독 및 진단 분석 시작", type="primary", use_container_width=True):
                     with st.spinner("AI가 고해상도 눈인식 픽셀 분석을 통해 사물을 해독하는 중..."):
                         try:
                             import google.generativeai as genai
@@ -367,7 +387,7 @@ if df is not None:
                                 "너는 바이알 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 인공지능 비전이야. "
                                 "제시된 사진을 정밀 해독해서 1. 이 부품이 어떤 기계 부품이거나 도구/설비인지 이름을 유추해주고, "
                                 "2. 현재 표면 마모, 균열, 오염, 혹은 손상 징후가 육안상 식별되는지 외관 상태를 정밀 진단해줘. "
-                                "3. 마지막으로 현장 정비원이 조치해야 할 예방보전 조치안을 대기업 공장 보고서 스타일로 한국어로 설명해줘."
+                                "3. 마지막으로 현장 정비원이 조치해야 할 예방보전 조치안을 대기업 공장 보고서 스타일로 깔끔하고 신뢰감 있게 한국어로 나누어 설명해줘."
                             )
                             
                             models_to_try = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-pro-latest']
@@ -384,17 +404,19 @@ if df is not None:
                                     continue
                             
                             if ai_response is not None:
-                                st.success(f"🎯 사진 해독 완료! (적용 엔진: {used_model})")
+                                st.success(f"🎯 사진 해독이 성공적으로 완료되었습니다! (적용 엔진: {used_model})")
                                 st.write(ai_response.text)
                             else:
                                 st.error("❌ 모든 구글 AI 모델이 거부 응답을 보냈습니다. 한도를 점검해 주세요.")
                         except Exception as error_msg:
-                            st.error(f"❌ AI 분석 연동 중 오류 발생: {error_msg}")
+                            st.error(f"❌ AI 분석 모듈 연동 중 오류가 발생했습니다: {error_msg}")
 
-    # 탭 4: 💬 AI 현장 정비 지식 챗봇
+    # ----------------------------------------------------------------------
+    # [메뉴 4] 💬 AI 현장 정비 지식 챗봇 탭 (UX 개편)
+    # ----------------------------------------------------------------------
     with menu_tab4:
         st.subheader("🤖 AI 베테랑 선임 정비원 24hr 지식 챗봇")
-        st.write("현장 공정 트러블슈팅, 기계공학 조치 지식, 볼트 규격 체결값 등을 언제든 질문하세요.")
+        st.write("현장 공정 트러블슈팅, 기계공학 조치 지식, 볼트 규격 체결값 등 베테랑 마스터의 가이드가 필요할 때 질문하세요.")
         
         chat_api_key = st.secrets.get("GEMINI_API_KEY", "")
             
@@ -402,34 +424,34 @@ if df is not None:
             st.session_state.chat_history = [
                 {
                     "role": "assistant", 
-                    "content": "안녕하세요! 바이알 라인 예방보전 공정 마스터 정비봇입니다. ⚙️\\n현장에서 겪고 계시는 기술적 애로사항을 말씀해 주시면 명쾌한 정비 솔루션을 찾아드리겠습니다!"
+                    "content": "안녕하세요! 바이알 라인 예방보전 공정 마스터 정비봇입니다. ⚙️\\n설비 구동부 트러블이나 규격 노하우 등 현장 애로사항을 말씀해 주시면 해결책을 찾아드리겠습니다!"
                 }
             ]
             
-        # 대화 이력 피드 피드백
-        for msg in st.session_state.chat_history:
-            with st.chat_message(msg["role"]):
-                st.write(msg["content"])
+        st.markdown("<span class='section-title'>💬 1:1 정비 통신창</span>", unsafe_allow_html=True)
+        # 스크롤 피드를 감싸는 대화 카드 컨테이너 배치
+        with st.container():
+            for msg in st.session_state.chat_history:
+                with st.chat_message(msg["role"]):
+                    st.write(msg["content"])
                 
-        # 하단 대화 입력 박스 가동
-        if user_prompt := st.chat_input("정비 문제 상황이나 기계 질문을 입력하세요"):
+        if user_prompt := st.chat_input("정비 문제 상황이나 기계 질문을 타이핑하세요"):
             with st.chat_message("user"):
                 st.write(user_prompt)
             st.session_state.chat_history.append({"role": "user", "content": user_prompt})
             
             if not chat_api_key:
-                st.error("❌ Secrets에 GEMINI_API_KEY가 세팅되어 있지 않습니다.")
+                st.error("❌ 대시보드 Secrets에 GEMINI_API_KEY가 세팅되어 있지 않습니다.")
             else:
                 with st.chat_message("assistant"):
-                    with st.spinner("마스터가 현장 매뉴얼을 기반으로 조치 방안을 도출하는 중..."):
+                    with st.spinner("베테랑 마스터가 조치 방안을 도출하는 중..."):
                         try:
                             import google.generativeai as genai
                             genai.configure(api_key=chat_api_key)
                             
                             system_instruction = (
                                 "너는 바이알 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 수석 엔지니어 보전원이야. "
-                                "수십 년 경력의 베테랑 선임 정비원 스타일로 해결책을 조항별로 나누어 한국어로 설명해줘. "
-                                "현장에서 당장 조치할 수 있는 실천적인 행동 매뉴얼 위주로 작성해야 해."
+                                "해결책을 조항별로 나누어 한국어로 설명해줘. 불필요한 서론은 생략하고 현장에서 당장 조치할 수 있는 실천적인 행동 매뉴얼 위주로 작성해야 해."
                             )
                             
                             chat_models = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-pro-latest']
@@ -447,7 +469,7 @@ if df is not None:
                                 st.session_state.chat_history.append({"role": "assistant", "content": bot_reply.text})
                                 st.rerun()
                             else:
-                                st.error("❌ 구글 AI 통신망 연결이 일시적으로 거부되었습니다.")
+                                st.error("❌ 구글 AI 통신망 릴레이 연결이 일시적으로 거부되었습니다.")
                         except Exception as chat_err:
                             st.error(f"❌ 챗봇 엔진 작동 오류: {chat_err}")
 else:
