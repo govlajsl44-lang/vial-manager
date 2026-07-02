@@ -87,7 +87,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏭 바이알 라인 예지정비 관제탑 (MES Pro)")
+st.title("설비 소모품 관리 시스템")
 
 # 0초 무지연 실시간 라이브 데이터 주소
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8/export?format=csv&gid=0"
@@ -161,7 +161,7 @@ if df is not None:
     urgent_parts = df[(df['남은시간'] <= 200) | (df[c_stock] <= 2)]
     
     if not urgent_parts.empty:
-        with st.expander(f"🚨 위험보전 알림: 정비 임계 품목 {len(urgent_parts)}건 검출", expanded=True):
+        with st.expander(f"🚨 위험물품 알림: 정비 임계 품목 {len(urgent_parts)}건 검출", expanded=True):
             alert_display = urgent_parts[[c_mach, c_name, '남은시간', c_stock]].copy()
             alert_display.columns = ['설비명', '부품명', '잔여(Hr)', '재고(EA)']
             st.dataframe(alert_display, use_container_width=True, hide_index=True)
@@ -169,7 +169,7 @@ if df is not None:
     # 📊 상단 실시간 공정 자산 대시보드
     st.markdown("### 📊 실시간 공정 지표")
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("총 관리 소모품 종류", f"{len(df)} SKU")
+    m1.metric("총 관리 소모품 종류", f"{len(df)} 종류")
     m2.metric("보안재고 위험군 (2개 이하)", f"{len(df[df[c_stock] <= 2])} 종")
     m3.metric("라인 가동 상태", "NORMAL (안정 구동)")
     m4.metric("시스템 동기화 기준", datetime.date.today().strftime("%Y-%m-%d"))
@@ -178,10 +178,10 @@ if df is not None:
     
     # 📋 직관적인 아이콘이 포함된 4대 핵심 메뉴 탭 구성
     menu_tab1, menu_tab2, menu_tab3, menu_tab4 = st.tabs([
-        "📋 1. 자산 관제 & 신품 교체", 
-        "📝 2. 일일 정비 일지 기록", 
-        "📸 3. AI 비전 현장 객체 진단",
-        "💬 4. AI 베테랑 정비 지식 챗봇"
+        "📋 1. 자산 관리 & 신품 교체", 
+        "📝 2. 정비 일지 기록", 
+        "📸 3. AI 카메라 진단",
+        "💬 4. AI 정비 챗봇"
     ])
 
     # ----------------------------------------------------------------------
@@ -214,13 +214,13 @@ if df is not None:
             with st.container():
                 if pd.notna(part_info[c_install_date]):
                     raw_install_date = str(part_info[c_install_date]).strip()
-                    st.markdown(f"🗓️ **최초 장착일 (J열) :** `{raw_install_date}`")
+                    st.markdown(f"🗓️ **최초 장착일 :** `{raw_install_date}`")
                     try:
                         parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
                     except:
                         parsed_start = datetime.date.today()
                 else:
-                    st.markdown("🗓️ **최초 장착일 (J열) :** `기록 없음`")
+                    st.markdown("🗓️ **최초 장착일 :** `기록 없음`")
                     parsed_start = datetime.date.today()
 
                 months_to_add = int(part_info[c_life_m])
@@ -231,12 +231,12 @@ if df is not None:
                 # 명확한 가시성을 확보한 상태 스펙 스택 배치
                 st.markdown(f"⏳ **차기 권장 교체일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}` (주기: {months_to_add}개월)")
                 st.markdown(f"📦 **창고 보관 여분 재고 :** `{part_info[c_stock]} EA`")
-                st.markdown(f"⏱️ **가동 런타임 스펙 :** `{part_info[c_curr_h]} hr` / 한계 `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
+                st.markdown(f"⏱️ **가동 런타임:** `{part_info[c_curr_h]} hr` / 한계 `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
                 
                 manual_url = part_info[c_manual]
                 if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
                     st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                    st.link_button("📄 표준 정비 SOP 지침서 열람 (H열)", manual_url.strip(), type="primary", use_container_width=True)
+                    st.link_button("📄 정비 메뉴얼", manual_url.strip(), type="primary", use_container_width=True)
 
             with st.expander("⚙️ 예외 변수 수동 수치 보정 (필요시에만 사용)"):
                 new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info[c_curr_h]), step=10, key="adj_h")
@@ -245,19 +245,19 @@ if df is not None:
                     with st.spinner("보전 서버 통신 중..."):
                         update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, 6, new_curr_h) 
                         update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_stock, new_stock) 
-                        st.success("✅ 마스터 수치 수동 보정 완료")
+                        st.success("✅ 수치 수동 보정 완료")
                         st.cache_data.clear()
                         st.rerun()
                         
         with col2:
-            st.markdown("<span class='section-title'>3️⃣ 현장 소모품 신품 교체 집행</span>", unsafe_allow_html=True)
+            st.markdown("<span class='section-title'>3️⃣ 소모품 교체 일자</span>", unsafe_allow_html=True)
             with st.container():
                 st.warning(f"⚠️ **작업 확정 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래 단추를 누르면 **[운전시간 0Hr 리셋 / 여분재고 1개 차감 / 장착일 오늘 자동 갱신]**이 구글 시트에 영구 반영됩니다.")
-                chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 집행 날짜 지정", datetime.date.today(), key="exec_date_picker")
+                chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 날짜 지정", datetime.date.today(), key="exec_date_picker")
                 
-                if st.button("🔧 지정을 확인하였으며 새 소모품 교체 확정 처리", type="primary", use_container_width=True):
+                if st.button("교체 확정", type="primary", use_container_width=True):
                     if part_info[c_stock] <= 0:
-                        st.error("❌ 창고 내 여분 재고 자산이 부족(0개)하여 신품 마스터 교체 명령을 수행할 수 없습니다.")
+                        st.error("❌ 창고 내 여분 재고 자산이 부족(0개)하여 교체 명령을 수행할 수 없습니다.")
                     else:
                         with st.spinner("중앙 ERP 스프레드시트 클라우드 원격 갱신 중..."):
                             reset_hours = 0
@@ -275,12 +275,12 @@ if df is not None:
                                 "정비내용": f"[신품 교체 완수] 수량 1EA 차감 및 장착일 세팅 완료."
                             }
                             st.session_state.temp_logs.insert(0, auto_system_log)
-                            st.success(f"🎉 [{selected_part}] 신품 장착 처리 및 마스터 스케줄링 리셋이 완벽하게 완수되었습니다.")
+                            st.success(f"🎉 [{selected_part}] 신품 장착 처리 및 스케줄링 리셋이 완벽하게 완수되었습니다.")
                             st.balloons()
                             st.cache_data.clear()
                             st.rerun()
 
-            st.markdown("##### ⏱️ 현재 소모품 실시간 수명 소모율 진행 바")
+            st.markdown("##### ⏱️ 현재 소모품 실시간 수명")
             current_hours = int(part_info[c_curr_h])
             max_hours = int(part_info[c_life_h])
             progress_per = max(0, min(100, int((current_hours / max_hours) * 100))) if max_hours > 0 else 0
@@ -301,7 +301,7 @@ if df is not None:
     # [메뉴 2] 디지털 정비 일지 관리실 탭 (UX 개편)
     # ----------------------------------------------------------------------
     with menu_tab2:
-        st.markdown("### 📝 제조 설비 일일 정비·교체 일지 기록실")
+        st.markdown("### 📝 제조 설비 일일 정비·교체 일지")
         log_col1, log_col2 = st.columns([1, 1.2], gap="medium")
         
         with log_col1:
@@ -311,8 +311,8 @@ if df is not None:
                 log_mach = st.selectbox("정비 대상 설비 선택", df[c_mach].unique(), key="m_log_mach")
                 filtered_log_df = df[df[c_mach] == log_mach]
                 log_part = st.selectbox("정비 처리 부품 선택", filtered_log_df[c_name].unique(), key="m_log_part")
-                log_worker = st.text_input("작업 정비원 성명 기입", placeholder="예: 보전팀 홍길동 과장", key="m_log_worker")
-                log_content = st.text_area("상세 정비 작업 사역 내역 기술", placeholder="예: 구동 기어 유격 측정 후 중심 정렬 및 볼트 고정 록타이트 처리.", key="m_log_content")
+                log_worker = st.text_input("작업 정비원 성명 기입", placeholder="예: 제품2팀 정철우", key="m_log_worker")
+                log_content = st.text_area("상세 정비 작업 내역 기술", placeholder="예: 구동 기어 유격 측정 후 중심 정렬 및 볼트 고정 록타이트 처리.", key="m_log_content")
                 
                 st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
                 if st.button("🚀 정비 이력 로그 중앙 서버 전송", type="primary", use_container_width=True, key="m_log_submit_btn"):
@@ -348,7 +348,7 @@ if df is not None:
         
         if "GEMINI_API_KEY" in st.secrets:
             vision_api_key = st.secrets["GEMINI_API_KEY"]
-            st.success("🟢 클라우드 공용 AI 보안 엔진이 안전하게 연동되어 있습니다. (키 입력 불필요)")
+            st.success("🟢 클라우드 공용 AI 보안 엔진이 안전하게 연동되어 있습니다.")
         else:
             vision_api_key = ""
             st.error("⚠️ [알림] 공용으로 사용하시려면 Streamlit Settings -> Secrets 메뉴에 GEMINI_API_KEY를 등록해 주세요.")
@@ -367,15 +367,15 @@ if df is not None:
                     captured_file = st.file_uploader("부품 사진 이미지 선택 (JPG, PNG)", type=["jpg", "jpeg", "png"], key="file_vision")
                     
                 if captured_file is not None:
-                    st.image(captured_file, caption="🛠️ AI 분석 대상 이미지 객체", width=360)
+                    st.image(captured_file, caption="🛠️ AI 분석 대상 이미지", width=360)
         
         with v_col2:
-            st.markdown("<span class='section-title'>2️⃣ 🤖 AI 비전 실시간 진단 및 정비 권고안</span>", unsafe_allow_html=True)
+            st.markdown("<span class='section-title'>2️⃣ AI 비전 실시간 진단 및 정비 권고안</span>", unsafe_allow_html=True)
             if captured_file is None:
                 st.info("💡 안내: 왼쪽 입력 장치에서 카메라로 사진을 찍거나 파일을 등록하시면 실시간 분석 대기 모드로 전환됩니다.")
             else:
                 if st.button("🚀 이미지 비전 해독 및 진단 분석 시작", type="primary", use_container_width=True):
-                    with st.spinner("AI가 고해상도 눈인식 픽셀 분석을 통해 사물을 해독하는 중..."):
+                    with st.spinner("AI가 고해상도 픽셀 분석을 통해 사물을 해독하는 중..."):
                         try:
                             import google.generativeai as genai
                             from PIL import Image
@@ -384,7 +384,7 @@ if df is not None:
                             pil_image = Image.open(captured_file)
                             
                             context_prompt = (
-                                "너는 바이알 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 인공지능 비전이야. "
+                                "너는 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 인공지능 비전이야. "
                                 "제시된 사진을 정밀 해독해서 1. 이 부품이 어떤 기계 부품이거나 도구/설비인지 이름을 유추해주고, "
                                 "2. 현재 표면 마모, 균열, 오염, 혹은 손상 징후가 육안상 식별되는지 외관 상태를 정밀 진단해줘. "
                                 "3. 마지막으로 현장 정비원이 조치해야 할 예방보전 조치안을 대기업 공장 보고서 스타일로 깔끔하고 신뢰감 있게 한국어로 나누어 설명해줘."
@@ -404,7 +404,7 @@ if df is not None:
                                     continue
                             
                             if ai_response is not None:
-                                st.success(f"🎯 사진 해독이 성공적으로 완료되었습니다! (적용 엔진: {used_model})")
+                                st.success(f"사진 해독이 성공적으로 완료되었습니다! (적용 엔진: {used_model})")
                                 st.write(ai_response.text)
                             else:
                                 st.error("❌ 모든 구글 AI 모델이 거부 응답을 보냈습니다. 한도를 점검해 주세요.")
@@ -415,7 +415,7 @@ if df is not None:
     # [메뉴 4] 💬 AI 현장 정비 지식 챗봇 탭 (UX 개편)
     # ----------------------------------------------------------------------
     with menu_tab4:
-        st.subheader("🤖 AI 베테랑 선임 정비원 24hr 지식 챗봇")
+        st.subheader("정비 챗봇")
         st.write("현장 공정 트러블슈팅, 기계공학 조치 지식, 볼트 규격 체결값 등 베테랑 마스터의 가이드가 필요할 때 질문하세요.")
         
         chat_api_key = st.secrets.get("GEMINI_API_KEY", "")
@@ -424,7 +424,7 @@ if df is not None:
             st.session_state.chat_history = [
                 {
                     "role": "assistant", 
-                    "content": "안녕하세요! 바이알 라인 예방보전 공정 마스터 정비봇입니다. ⚙️\\n설비 구동부 트러블이나 규격 노하우 등 현장 애로사항을 말씀해 주시면 해결책을 찾아드리겠습니다!"
+                    "content": "안녕하세요! 정비봇입니다. 설비 구동부 트러블이나 규격 노하우 등 현장 애로사항을 말씀해 주시면 해결책을 찾아드리겠습니다!"
                 }
             ]
             
@@ -444,13 +444,13 @@ if df is not None:
                 st.error("❌ 대시보드 Secrets에 GEMINI_API_KEY가 세팅되어 있지 않습니다.")
             else:
                 with st.chat_message("assistant"):
-                    with st.spinner("베테랑 마스터가 조치 방안을 도출하는 중..."):
+                    with st.spinner("정비 챗봇이 조치 방안을 도출하는 중..."):
                         try:
                             import google.generativeai as genai
                             genai.configure(api_key=chat_api_key)
                             
                             system_instruction = (
-                                "너는 바이알 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 수석 엔지니어 보전원이야. "
+                                "너는 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 수석 엔지니어 보전원이야. "
                                 "해결책을 조항별로 나누어 한국어로 설명해줘. 불필요한 서론은 생략하고 현장에서 당장 조치할 수 있는 실천적인 행동 매뉴얼 위주로 작성해야 해."
                             )
                             
