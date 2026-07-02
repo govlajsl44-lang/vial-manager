@@ -140,7 +140,13 @@ if df is not None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    menu_tab1, menu_tab2, menu_tab3 = st.tabs(["📋 소모품 자산 관제 및 신품 교체 제어", "📝 디지털 정비 일지 관리실", "📸 AI 비전 현장 진단 및 부품 식별"])
+    # 🆕 네 번째 탭 [💬 AI 현장 정비 가이드 챗봇] 추가 배정 완료!
+    menu_tab1, menu_tab2, menu_tab3, menu_tab4 = st.tabs([
+        "📋 소모품 자산 관제 및 신품 교체 제어", 
+        "📝 디지털 정비 일지 관리실", 
+        "📸 AI 비전 현장 진단 및 부품 식별",
+        "💬 AI 현장 정비 가이드 챗봇"
+    ])
 
     with menu_tab1:
         query_params = st.query_params
@@ -299,6 +305,7 @@ if df is not None:
                 log_df_display = pd.DataFrame(display_logs)
                 st.dataframe(log_df_display, use_container_width=True, hide_index=True)
 
+    # 3번 탭 (AI 비전 진단 모듈)
     with menu_tab3:
         st.subheader("📸 AI 실시간 스마트 현장 진단 및 부품 식별")
         st.write("공장 부품이나 마모된 설비 부위를 카메라로 촬영하거나 사진을 업로드하세요. 고성능 인공지능 비전 엔진이 사물을 식별하고 진단 결과를 도출합니다.")
@@ -351,8 +358,6 @@ if df is not None:
                                     "대기업 공장 보고서 스타일로 깔끔하고 신뢰감 있게 한국어로 나누어 설명해줘."
                                 )
                                 
-                                # 🎯 [회원님 계정 맞춤형 릴레이 우회 명칭 전격 세팅]
-                                # 보내주신 디버깅 리스트 중 비전 해독이 가능한 유효 모델을 한도 넉넉한 순서대로 순회 타격합니다.
                                 models_to_try = [
                                     'gemini-2.5-flash',
                                     'gemini-flash-latest',
@@ -362,7 +367,6 @@ if df is not None:
                                 ]
                                 
                                 ai_response = None
-                                last_error = None
                                 used_model = ""
                                 
                                 for model_name in models_to_try:
@@ -371,8 +375,7 @@ if df is not None:
                                         ai_response = vision_model.generate_content([context_prompt, pil_image])
                                         used_model = model_name
                                         break
-                                    except Exception as e:
-                                        last_error = e
+                                    except:
                                         continue
                                 
                                 if ai_response is not None:
@@ -380,9 +383,88 @@ if df is not None:
                                     st.success(f"🎯 사진 해독이 성공적으로 완료되었습니다! (적용 엔진: {used_model})")
                                     st.write(ai_response.text)
                                 else:
-                                    raise last_error
+                                    raise Exception("지정된 모든 구글 AI 모델이 거부 응답을 보냈습니다.")
                                 
                             except Exception as error_msg:
                                 st.error(f"❌ AI 분석 모듈 연동 중 오류가 발생했습니다: {error_msg}")
+
+    # ----------------------------------------------------------------------
+    # 🆕 [대망의 4번 탭] 💬 AI 현장 정비 지식 가이드 챗봇 모듈 신설
+    # ----------------------------------------------------------------------
+    with menu_tab4:
+        st.subheader("🤖 AI 베테랑 선임 정비원 24hr 지식 챗봇")
+        st.write("현장 공정 설비 트러블슈팅, 기계공학 조치 지식, 볼트 규격 체결값, 그리스 윤활유 주입 주기 등 베테랑 마스터의 가이드가 필요할 때 언제든 질문하세요.")
+        
+        # Secrets에서 키값 동기화 확인
+        if "GEMINI_API_KEY" in st.secrets:
+            chat_api_key = st.secrets["GEMINI_API_KEY"]
+        else:
+            chat_api_key = ""
+            
+        # 대화 이력을 브라우저 세션에 저장할 수 있게 세팅
+        if "chat_history" not in st.session_state:
+            st.session_state.chat_history = [
+                {
+                    "role": "assistant", 
+                    "content": "안녕하세요! 바이알 라인 예방보전 공정 마스터 정비봇입니다. ⚙️\\n설비 구동부 벨트가 슬립하거나, 모터 발열 현상, 혹은 자재 규격 조치 노하우 등 현장에서 겪고 계시는 기술적 애로사항을 말씀해 주시면 명쾌한 정비 솔루션을 찾아드리겠습니다!"
+                }
+            ]
+            
+        # 화면에 지금까지 나눈 대화 이력 피드백 렌더링
+        for msg in st.session_state.chat_history:
+            with st.chat_message(msg["role"]):
+                st.write(msg["content"])
+                
+        # 하단 대화 입력 박스 가동
+        if user_prompt := st.chat_input("정비 문제 상황이나 기계 질문을 타이핑하세요 (예: 펌프 실링 누수 조치안)"):
+            
+            # 1. 사용자가 친 글 화면에 바로 뿌리기
+            with st.chat_message("user"):
+                st.write(user_prompt)
+            st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+            
+            # 2. 구글 AI 서버에 정비 책임 마스터 프롬프트 주입 후 답변 생성
+            if not chat_api_key:
+                st.error("❌ 대시보드 Secrets에 GEMINI_API_KEY가 세팅되어 있지 않아 대화를 시작할 수 없습니다.")
+            else:
+                with st.chat_message("assistant"):
+                    with st.spinner("베테랑 마스터가 현장 매뉴얼을 기반으로 조치 방안을 도출하는 중..."):
+                        try:
+                            import google.generativeai as genai
+                            genai.configure(api_key=chat_api_key)
+                            
+                            system_instruction = (
+                                "너는 바이알 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 수석 엔지니어 보전원이야. "
+                                "작업자가 현장 정비, 기계 공학, 설비 트러블슈팅, 부품 취급 규격 사양 등에 대해 질문하면 "
+                                "수십 년 경력의 베테랑 선임 정비원 스타일로 아주 명쾌하고 구체적인 공학적 해결책을 조항별로 나누어 한국어로 설명해줘. "
+                                "불필요한 서론은 생략하고 현장에서 당장 조치할 수 있는 실천적인 행동 매뉴얼 위주로 작성해야 해."
+                            )
+                            
+                            # 검증된 계정별 허용 최신 규격 리스트 순회
+                            chat_models = [
+                                'gemini-2.5-flash',
+                                'gemini-flash-latest',
+                                'gemini-3.5-flash',
+                                'gemini-2.0-flash',
+                                'gemini-pro-latest'
+                            ]
+                            
+                            bot_reply = None
+                            for m_name in chat_models:
+                                try:
+                                    c_model = genai.GenerativeModel(m_name)
+                                    bot_reply = c_model.generate_content([system_instruction, user_prompt])
+                                    break
+                                except:
+                                    continue
+                                    
+                            if bot_reply is not None:
+                                st.write(bot_reply.text)
+                                st.session_state.chat_history.append({"role": "assistant", "content": bot_reply.text})
+                                st.rerun()  # 화면을 깔끔하게 리프레시하여 스크롤 흐름 고정
+                            else:
+                                st.error("❌ 구글 AI 통신망 릴레이 연결이 일시적으로 거부되었습니다. 다시 질문해 주세요.")
+                        except Exception as chat_err:
+                            st.error(f"❌ 챗봇 엔진 작동 오류: {chat_err}")
 else:
     st.info("구글 마스터 스프레드시트 데이터 통신망 연결 대기 중...")
