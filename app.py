@@ -54,7 +54,7 @@ st.title("🏭 바이알 제조공정 스마트 설비 예지정비 시스템 (M
 # 0초 무지연 실시간 라이브 데이터 주소
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8/export?format=csv&gid=0"
 
-# 🔑 [2번 방식 전면 연동] Secrets 상자에서 안전하게 환경 변수 호출
+# 🔑 Secrets 상자에서 안전하게 환경 변수 호출
 if "MACRO_URL" in st.secrets:
     LIVE_MACRO_URL = st.secrets["MACRO_URL"]
     LIVE_SHEET_NAME = st.secrets.get("SHEET_NAME", "시트1")
@@ -98,19 +98,18 @@ df = load_data(SHEET_CSV_URL)
 if df is not None:
     col_list = list(df.columns)
     
-    # 🎯 사용자가 명시한 열 구성 완벽 맵핑 완료
-    # G열(6): 현재운전시간, H열(7): 정비매뉴얼, I열(8): 여분수량, J열(9): 최초장착일
-    c_id = col_list[0]          # A열
-    c_mach = col_list[1]        # B열
-    c_name = col_list[2]        # C열
-    c_mat = col_list[3]         # D열
-    c_life_m = col_list[4]      # E열
-    c_life_h = col_list[5]      # F열
-    c_curr_h = col_list[6]      # G열
+    # 구글 시트 고정 열 매핑
+    c_id = col_list[0]          
+    c_mach = col_list[1]        
+    c_name = col_list[2]        
+    c_mat = col_list[3]         
+    c_life_m = col_list[4]      
+    c_life_h = col_list[5]      
+    c_curr_h = col_list[6]      
     
-    idx_manual = 7              # H열 (인덱스 7)
-    idx_stock = 8               # I열 (인덱스 8)
-    idx_install = 9             # J열 (인덱스 9)
+    idx_manual = 7              
+    idx_stock = 8               
+    idx_install = 9             
 
     c_manual = col_list[idx_manual]
     c_stock = col_list[idx_stock]
@@ -190,7 +189,6 @@ if df is not None:
                 
                 st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
                 
-                # H열 매뉴얼 복구 확인
                 manual_url = part_info[c_manual]
                 if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
                     st.link_button("📄 표준 정비 지침서(SOP) 열람 (H열)", manual_url.strip(), type="primary", use_container_width=True)
@@ -224,7 +222,6 @@ if df is not None:
                             reduced_stock = int(part_info[c_stock]) - 1
                             formatted_install_date = chosen_execution_date.strftime("%Y-%m-%d")
                             
-                            # 정확한 열 주입 동기화
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, 6, reset_hours)       
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_stock, reduced_stock) 
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_install, formatted_install_date) 
@@ -306,7 +303,6 @@ if df is not None:
         st.subheader("📸 AI 실시간 스마트 현장 진단 및 부품 식별")
         st.write("공장 부품이나 마모된 설비 부위를 카메라로 촬영하거나 사진을 업로드하세요. 고성능 인공지능 비전 엔진이 사물을 식별하고 진단 결과를 도출합니다.")
         
-        # 🔑 Secrets 기반 자동 공용 키 바인딩 완료
         if "GEMINI_API_KEY" in st.secrets:
             vision_api_key = st.secrets["GEMINI_API_KEY"]
             st.success("🟢 클라우드 공용 AI 보안 엔진이 안전하게 연동되어 있습니다. (키 입력 불필요)")
@@ -317,53 +313,3 @@ if df is not None:
         v_col1, v_col2 = st.columns([1, 1.2], gap="large")
         
         with v_col1:
-            st.markdown("##### 📷 하드웨어 이미지 입력 소스")
-            input_mode = st.radio("사진 획득 방식을 고르세요", ["📱 모바일/패드 카메라로 직접 촬영", "📁 갤러리/컴퓨터 파일 업로드"], key="vision_mode")
-            
-            captured_file = None
-            if input_mode == "📱 모바일/패드 카메라로 직접 촬영":
-                captured_file = st.camera_input("부품 외관 비추기")
-            else:
-                captured_file = st.file_uploader("부품 사진 이미지 선택 (JPG, PNG)", type=["jpg", "jpeg", "png"], key="file_vision")
-                
-            if captured_file is not None:
-                st.image(captured_file, caption="🛠️ AI 분석 대상 이미지 객체", width=380)
-        
-        with v_col2:
-            st.markdown("##### 🤖 AI 비전 실시간 해독 및 정비 권고안")
-            
-            if captured_file is None:
-                st.info("💡 안내: 왼쪽 입력 장치에서 카메라로 사진을 찍거나 파일을 등록하시면 실시간 분석 대기 모드로 전환됩니다.")
-            else:
-                if st.button("🚀 이미지 비전 해독 및 진단 분석 시작", type="primary", use_container_width=True):
-                    if not vision_api_key:
-                        st.warning("⚠️ AI 분석을 수행하려면 Secrets 설정을 완료해 주셔야 합니다.")
-                    else:
-                        with st.spinner("AI가 고해상도 눈인식 픽셀 분석을 통해 사물을 해독하는 중..."):
-                            try:
-                                import google.generativeai as genai
-                                from PIL import Image
-                                
-                                genai.configure(api_key=vision_api_key)
-                                vision_model = genai.GenerativeModel('gemini-1.5-flash')
-                                
-                                pil_image = Image.open(captured_file)
-                                
-                                context_prompt = (
-                                    "너는 바이알 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 인공지능 비전이야. "
-                                    "제시된 사진을 정밀 해독해서 1. 이 부품이 어떤 기계 부품이거나 도구/설비인지 이름을 유추해주고, "
-                                    "2. 현재 표면 마모, 균열, 오염, 혹은 손상 징후가 육안상 식별되는지 외관 상태를 정밀 진단해줘. "
-                                    "3. 마지막으로 현장 정비원이 조치해야 할 예방보전 조치안(예: 즉시 교체, 그리스 주입, 추가 세척 등)을 "
-                                    "대기업 공장 보고서 스타일로 깔끔하고 신뢰감 있게 한국어로 나누어 설명해줘."
-                                )
-                                
-                                ai_response = vision_model.generate_content([context_prompt, pil_image])
-                                
-                                st.markdown("##### 📋 인공지능 비전 마스터 진단 리포트")
-                                st.success("🎯 사진 해독이 성공적으로 완료되었습니다!")
-                                st.write(ai_response.text)
-                                
-                            except Exception as error_msg:
-                                st.error(f"❌ AI 분석 모듈 연동 중 오류가 발생했습니다: {error_msg}")
-else:
-    st.info("구글 마스터 스프레드시트 데이터 통신망 연결 대기 중...")
