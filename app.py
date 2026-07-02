@@ -140,7 +140,7 @@ def update_google_sheet(sheet_id, sheet_name, row_idx, col_idx, new_value):
 if "temp_logs" not in st.session_state:
     st.session_state.temp_logs = []
 
-@st.cache_data(ttl=1)
+@st.cache_data(ttl=5)
 def load_data(url):
     try:
         df = pd.read_csv(url)
@@ -456,7 +456,7 @@ if df is not None:
         # 💡 현재 위치 인지용 히어로 배너 주입
         st.markdown("""
             <div class='menu-hero-banner'>
-                <h3>💬 AI 베테랑 선임 정비원 24hr 지식 대화방</h3>
+                <h3>💬 AI 정비 챗봇</h3>
                 <p>설비 구동부 트러블슈팅, 기계공학 조치 지식, 볼트 체결 토크값 등 현장 애로사항에 대한 솔루션을 실시간으로 논의합니다.</p>
             </div>
         """, unsafe_allow_html=True)
@@ -471,7 +471,7 @@ if df is not None:
                 }
             ]
             
-        st.markdown("<span class='section-title'>💬 1:1 정비 기술 무전창</span>", unsafe_allow_html=True)
+        st.markdown("<span class='section-title'>💬 1:1 대화 챗봇</span>", unsafe_allow_html=True)
         with st.container():
             for msg in st.session_state.chat_history:
                 with st.chat_message(msg["role"]):
