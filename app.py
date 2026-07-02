@@ -234,7 +234,7 @@ if df is not None:
                             }
                             st.session_state.temp_logs.insert(0, auto_system_log)
                             
-                            st.success(f"🎉 [{selected_part}] 신품 장착 처리 및 마스터 스케줄링 리셋이 완벽하게 완수되었습니다.")
+                            st.success(f"🎉 [{selected_part}] 신품장착 처리 및 마스터 스케줄링 리셋이 완벽하게 완수되었습니다.")
                             st.balloons()
                             st.cache_data.clear()
                             st.rerun()
@@ -341,12 +341,6 @@ if df is not None:
                                 from PIL import Image
                                 
                                 genai.configure(api_key=vision_api_key)
-                                
-                                try:
-                                    vision_model = genai.GenerativeModel('gemini-2.0-flash')
-                                except:
-                                    vision_model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                                
                                 pil_image = Image.open(captured_file)
                                 
                                 context_prompt = (
@@ -357,7 +351,17 @@ if df is not None:
                                     "대기업 공장 보고서 스타일로 깔끔하고 신뢰감 있게 한국어로 나누어 설명해줘."
                                 )
                                 
-                                ai_response = vision_model.generate_content([context_prompt, pil_image])
+                                # 🎯 [핵심 에러 철통방어 로직] 2.0 모델 호출 후 429 에러가 나면 1.5 엔진으로 0초 만에 자동 전환
+                                try:
+                                    vision_model = genai.GenerativeModel('gemini-2.0-flash')
+                                    ai_response = vision_model.generate_content([context_prompt, pil_image])
+                                except Exception as e:
+                                    if "429" in str(e) or "quota" in str(e).lower():
+                                        # 2.0 한도 초과 시 무료 한도가 안정적인 1.5 표준 모델로 우회 전송
+                                        vision_model = genai.GenerativeModel('gemini-1.5-flash')
+                                        ai_response = vision_model.generate_content([context_prompt, pil_image])
+                                    else:
+                                        raise e
                                 
                                 st.markdown("##### 📋 인공지능 비전 마스터 진단 리포트")
                                 st.success("🎯 사진 해독이 성공적으로 완료되었습니다!")
