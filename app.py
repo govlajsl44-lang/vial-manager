@@ -351,9 +351,15 @@ if df is not None:
                                     "대기업 공장 보고서 스타일로 깔끔하고 신뢰감 있게 한국어로 나누어 설명해줘."
                                 )
                                 
-                                # 🎯 [연쇄 에러 릴레이 방어 시스템 선언]
-                                # 구글 서버 환경에 맞춰 유효한 최신 모델명 규격을 차례대로 자동 순회 타격합니다.
-                                models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro']
+                                # 🎯 [끝장 릴레이 매핑 최적화] 규격 오타 및 버전을 타파하기 위한 총 5개 후보군 풀가동
+                                models_to_try = [
+                                    'gemini-2.0-flash', 
+                                    'gemini-1.5-flash-latest', 
+                                    'gemini-1.5-flash', 
+                                    'gemini-1.5-pro-latest', 
+                                    'gemini-1.5-pro'
+                                ]
+                                
                                 ai_response = None
                                 last_error = None
                                 used_model = ""
@@ -363,18 +369,25 @@ if df is not None:
                                         vision_model = genai.GenerativeModel(model_name)
                                         ai_response = vision_model.generate_content([context_prompt, pil_image])
                                         used_model = model_name
-                                        break  # 성공 시 루프 탈출
+                                        break
                                     except Exception as e:
                                         last_error = e
-                                        continue  # 에러 나면 다음 모델명으로 즉시 우회
+                                        continue
                                 
-                                # 결과 출력 판정
+                                # 🔍 만약 5개 모델이 전부 거부당할 시, 해당 Key가 실제 가진 권한 목록을 파헤쳐 화면에 브리핑
                                 if ai_response is not None:
                                     st.markdown("##### 📋 인공지능 비전 마스터 진단 리포트")
                                     st.success(f"🎯 사진 해독이 성공적으로 완료되었습니다! (적용 엔진: {used_model})")
                                     st.write(ai_response.text)
                                 else:
-                                    raise last_error
+                                    # 실시간 허용 모델 탐색기 가동
+                                    try:
+                                        allowed_list = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                                        model_feedback = "\\n\\n🔑 **현재 회원님의 Key로 접근 허용된 구글 모델 목록:**\\n" + "\\n".join([f"- `{m}`" for m in allowed_list])
+                                    except:
+                                        model_feedback = "\\n\\n(구글 모델 리스트 조회마저 차단된 상태입니다. API Key 권한을 다시 점검해 주세요.)"
+                                    
+                                    raise Exception(str(last_error) + model_feedback)
                                 
                             except Exception as error_msg:
                                 st.error(f"❌ AI 분석 모듈 연동 중 오류가 발생했습니다: {error_msg}")
