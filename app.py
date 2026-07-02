@@ -234,7 +234,7 @@ if df is not None:
                             }
                             st.session_state.temp_logs.insert(0, auto_system_log)
                             
-                            st.success(f"🎉 [{selected_part}] 신품장착 처리 및 마스터 스케줄링 리셋이 완벽하게 완수되었습니다.")
+                            st.success(f"🎉 [{selected_part}] 신품 장착 처리 및 마스터 스케줄링 리셋이 완벽하게 완수되었습니다.")
                             st.balloons()
                             st.cache_data.clear()
                             st.rerun()
@@ -351,21 +351,30 @@ if df is not None:
                                     "대기업 공장 보고서 스타일로 깔끔하고 신뢰감 있게 한국어로 나누어 설명해줘."
                                 )
                                 
-                                # 🎯 [핵심 에러 철통방어 로직] 2.0 모델 호출 후 429 에러가 나면 1.5 엔진으로 0초 만에 자동 전환
-                                try:
-                                    vision_model = genai.GenerativeModel('gemini-2.0-flash')
-                                    ai_response = vision_model.generate_content([context_prompt, pil_image])
-                                except Exception as e:
-                                    if "429" in str(e) or "quota" in str(e).lower():
-                                        # 2.0 한도 초과 시 무료 한도가 안정적인 1.5 표준 모델로 우회 전송
-                                        vision_model = genai.GenerativeModel('gemini-1.5-flash')
-                                        ai_response = vision_model.generate_content([context_prompt, pil_image])
-                                    else:
-                                        raise e
+                                # 🎯 [연쇄 에러 릴레이 방어 시스템 선언]
+                                # 구글 서버 환경에 맞춰 유효한 최신 모델명 규격을 차례대로 자동 순회 타격합니다.
+                                models_to_try = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro']
+                                ai_response = None
+                                last_error = None
+                                used_model = ""
                                 
-                                st.markdown("##### 📋 인공지능 비전 마스터 진단 리포트")
-                                st.success("🎯 사진 해독이 성공적으로 완료되었습니다!")
-                                st.write(ai_response.text)
+                                for model_name in models_to_try:
+                                    try:
+                                        vision_model = genai.GenerativeModel(model_name)
+                                        ai_response = vision_model.generate_content([context_prompt, pil_image])
+                                        used_model = model_name
+                                        break  # 성공 시 루프 탈출
+                                    except Exception as e:
+                                        last_error = e
+                                        continue  # 에러 나면 다음 모델명으로 즉시 우회
+                                
+                                # 결과 출력 판정
+                                if ai_response is not None:
+                                    st.markdown("##### 📋 인공지능 비전 마스터 진단 리포트")
+                                    st.success(f"🎯 사진 해독이 성공적으로 완료되었습니다! (적용 엔진: {used_model})")
+                                    st.write(ai_response.text)
+                                else:
+                                    raise last_error
                                 
                             except Exception as error_msg:
                                 st.error(f"❌ AI 분석 모듈 연동 중 오류가 발생했습니다: {error_msg}")
