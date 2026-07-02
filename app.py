@@ -15,8 +15,15 @@ st.set_page_config(
 st.markdown("""
     <style>
     /* 기본 배경 및 여백 설정 */
+/* 1. 스트림릿 자체 헤더(Share, 깃허브 아이콘, 점 3개)를 완전히 숨겨 앱처럼 만들기 */
+    header[data-testid="stHeader"] {
+        visibility: hidden !important;
+        height: 0px !important;
+    }
+    
+    /* 2. 기본 배경 및 상단 여백 보정 (1rem에서 2.5rem으로 올려 타이틀 짤림 방지) */
     .main { background-color: #F8FAFC !important; }
-    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }
+    .block-container { padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }
     
     /* 타이틀 모바일 최적화 */
     h1 {
