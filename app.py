@@ -3,76 +3,84 @@ import pandas as pd
 import datetime
 import urllib.parse
 import requests
+import base64
+import os
 
 # 1. 하이브리드 반응형 페이지 레이아웃 정의
 st.set_page_config(
-    page_title="Smart MES Pro", 
+    page_title="Smart Maintenance Pro", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
+# 로컬 이미지 파일(정관장 이미지.jpg)을 연한 웹 배경으로 자동 변환하기 위한 Base64 디코더
+def get_base64_encoded_image(image_path):
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as img_file:
+            return f"data:image/jpeg;base64,{base64.b64encode(img_file.read()).decode()}"
+    # 파일이 없을 경우 작동할 투명 스킨용 대치 고화질 스마트 공장 백그라운드 소스
+    return "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1600"
+
+bg_target_file = "정관장 이미지.jpg"
+encoded_bg = get_base64_encoded_image(bg_target_file)
+
 # 📱 모바일 및 웹 동시 최적화 프리미엄 하이브리드 CSS 테마 주입
-st.markdown("""
+st.markdown(f"""
     <style>
     /* 기본 배경 및 여백 설정 */
-    /* 1. 스트림릿 자체 헤더(Share, 깃허브 아이콘, 점 3개)를 완전히 숨겨 앱처럼 만들기 */
-    header[data-testid="stHeader"] {
+    header[data-testid="stHeader"] {{
         visibility: hidden !important;
         height: 0px !important;
     }
     
-    /* 2. 기본 배경 및 상단 여백 보정 (1rem에서 2.5rem으로 올려 타이틀 짤림 방지) */
-    .main { background-color: #F8FAFC !important; }
-    .block-container { padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }
+    .main {{ background-color: #F8FAFC !important; }}
+    .block-container {{ padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }}
     
     /* 타이틀 모바일 최적화 */
-    h1 {
+    h1 {{
         color: #0F172A !important;
         font-weight: 800 !important;
         font-size: 1.8rem !important;
-        border-bottom: 3px solid #0284C7;
+        border-bottom: 3px solid #007BEC;
         padding-bottom: 8px;
         margin-bottom: 15px !important;
-    }
-    h2, h3, h4 { color: #1E293B !important; font-weight: 700 !important; margin-top: 0.8rem !important; }
+    }}
+    h2, h3, h4 {{ color: #1E293B !important; font-weight: 700 !important; margin-top: 0.8rem !important; }}
     
     /* 대형 관제 메트릭 카드 가시성 확보 */
-    div[data-testid="stMetric"] {
+    div[data-testid="stMetric"] {{
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        border-top: 4px solid #0284C7 !important;
+        border-top: 4px solid #007BEC !important;
         padding: 0.8rem !important;
         border-radius: 8px !important;
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05) !important;
         margin-bottom: 8px !important;
-    }
-    div[data-testid="stMetricLabel"] p { font-size: 0.8rem !important; color: #475569 !important; font-weight: 700 !important; }
-    div[data-testid="stMetricValue"] div { font-size: 1.4rem !important; font-weight: 800 !important; color: #0F172A !important; }
+    }}
+    div[data-testid="stMetricLabel"] p {{ font-size: 0.8rem !important; color: #475569 !important; font-weight: 700 !important; }}
+    div[data-testid="stMetricValue"] div {{ font-size: 1.4rem !important; font-weight: 800 !important; color: #0F172A !important; }}
     
     /* 모바일 스크롤용 카드 형태 컨테이너 */
-    div[data-testid="stContainer"] {
+    div[data-testid="stContainer"] {{
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
         padding: 1.2rem !important;
         border-radius: 8px !important;
         box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important;
         margin-bottom: 15px !important;
-    }
+    }}
     
-    /* 모바일 엄지손가락 터치 전용 버튼 스타일 고도화 */
-    .stButton>button { 
+    .stButton>button {{ 
         font-weight: 700 !important; 
-        border-radius: 6px !important; 
+        border-radius: 4px !important; 
         padding: 0.6rem 1rem !important;
         font-size: 1rem !important;
-    }
+    }}
     
-    /* 상단 탭 모바일 스크롤 지원 및 폰트 강조 */
-    button[data-baseweb="tab"] { font-size: 0.95rem !important; font-weight: 700 !important; color: #64748B !important; }
-    button[aria-selected="true"] { color: #0284C7 !important; border-bottom-color: #0284C7 !important; }
+    button[data-baseweb="tab"] {{ font-size: 0.95rem !important; font-weight: 700 !important; color: #64748B !important; }}
+    button[aria-selected="true"] {{ color: #007BEC !important; border-bottom-color: #007BEC !important; }}
     
-    /* 섹션 구분을 위한 서브 배너 스타일 */
-    .section-title {
+    .section-title {{
         background-color: #E0F2FE;
         color: #0369A1;
         padding: 6px 12px;
@@ -81,100 +89,117 @@ st.markdown("""
         font-size: 1rem;
         margin-bottom: 10px;
         display: inline-block;
-    }
+    }}
     
-    /* 안내 배너 스타일 */
-    .menu-hero-banner {
-        background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+    .menu-hero-banner {{
+        background: linear-gradient(135deg, #007BEC 0%, #0059B2 100%);
         color: #FFFFFF !important;
         padding: 1rem !important;
         border-radius: 8px !important;
         margin-bottom: 15px !important;
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
     }
-    .menu-hero-banner h3 { color: #FFFFFF !important; margin: 0 0 5px 0 !important; font-size: 1.2rem !important; }
-    .menu-hero-banner p { color: #E0F2FE !important; margin: 0 !important; font-size: 0.85rem !important; }
+    .menu-hero-banner h3 {{ color: #FFFFFF !important; margin: 0 0 5px 0 !important; font-size: 1.2rem !important; }}
+    .menu-hero-banner p {{ color: #E0F2FE !important; margin: 0 !important; font-size: 0.85rem !important; }}
     
     /* ----------------------------------------------------------- */
-    /* 📸 레퍼런스 스타일 완벽 반영 커스텀 로그인 레이아웃 스타일 */
+    /* 📸 레퍼런스 1번 레이아웃 구조 & 2번 연한 배경 합성 인프라 단독 정의 */
     /* ----------------------------------------------------------- */
-    .reference-login-box {
-        background-color: rgba(38, 38, 38, 0.95) !important; /* 이미지 속 짙은 투명 차콜 카드 */
-        border: 1px solid #404040 !important;
-        padding: 3rem 2.2rem !important;
-        border-radius: 4px !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3) !important;
+    .reference-fullscreen-wrapper {{
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        /* 사진 2번을 연하고 부드러운 오버레이 마스크(화이트 블렌딩 88%)로 감싸 대입 */
+        background: linear-gradient(rgba(241, 245, 249, 0.88), rgba(241, 245, 249, 0.88)), url('{encoded_bg}');
+        background-size: cover;
+        background-position: center;
+        z-index: -1;
+    }}
+    
+    .reference-login-layout {{
+        display: flex;
+        justify-content: flex-end; /* 1번 예시 모니터와 동일하게 우측에 완전히 붙도록 유도 */
+        align-items: center;
+        min-height: 80vh;
+        padding-right: 8%;
+    }}
+    
+    .reference-dark-container {{
+        background-color: rgba(30, 30, 30, 0.93) !important; /* 이미지 속의 짙은 차콜 박스 */
+        border: 1px solid #333333 !important;
+        width: 440px;
+        padding: 3.5rem 2.5rem !important;
+        border-radius: 2px !important; /* 직사각형 플랫 엣지 디자인 */
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
         text-align: center;
-    }
-    .ref-corp-title {
-        font-size: 1.4rem !important;
+    }}
+    
+    .ref-corp-title {{
+        font-size: 1.6rem !important;
         font-weight: 800 !important;
         color: #FFFFFF !important;
-        margin-bottom: 2px !important;
+        margin-bottom: 0px !important;
         letter-spacing: -0.5px;
-    }
-    .ref-sys-title {
+    }}
+    .ref-sys-title {{
         font-size: 1.1rem !important;
-        font-weight: 500 !important;
-        color: #A3A3A3 !important;
-        margin-bottom: 2rem !important;
-    }
+        font-weight: 400 !important;
+        color: #999999 !important;
+        margin-bottom: 2.2rem !important;
+    }}
     
-    /* 이미지 내부 인풋 폼처럼 레이블을 제거하고 투명하게 커스텀 */
-    div[data-testid="stTextInput"] input {
-        background-color: rgba(255, 255, 255, 0.08) !important;
+    /* 1번 양식 모사: 테두리 각진 투명 인풋 및 기본 레이블 공간 증발(collapsed) 처리 */
+    div[data-testid="stTextInput"] input {{
+        background-color: rgba(255, 255, 255, 0.07) !important;
         color: #FFFFFF !important;
-        border: 1px solid #52525B !important;
-        border-radius: 2px !important;
-        padding: 0.65rem 0.8rem !important;
-        font-size: 0.95rem !important;
-    }
-    div[data-testid="stTextInput"] input:focus {
-        border-color: #3B82F6 !important;
-        box-shadow: 0 0 0 1px #3B82F6 !important;
-    }
+        border: 1px solid #444444 !important;
+        border-radius: 1px !important;
+        padding: 0.7rem 0.9rem !important;
+        font-size: 1rem !important;
+    }}
+    div[data-testid="stTextInput"] input:focus {{
+        border-color: #007BEC !important;
+        box-shadow: 0 0 0 1px #007BEC !important;
+    }}
     
-    /* 레퍼런스 전용 선명한 블루 로그인 버튼 */
-    .ref-login-btn button {
-        background-color: #007BEC !important; /* 사진 속 직사각형 파란색 버튼 컬러 */
+    /* 선명하고 플랫한 직사각형 블루 버튼 정의 */
+    .ref-blue-btn button {{
+        background-color: #007BEC !important; 
         color: #FFFFFF !important;
         font-weight: 700 !important;
         font-size: 1.1rem !important;
         border: none !important;
-        border-radius: 2px !important;
-        padding: 0.7rem 0px !important;
-        transition: all 0.2s;
-    }
-    .ref-login-btn button:hover {
-        background-color: #0069CB !important;
-    }
+        border-radius: 1px !important;
+        padding: 0.75rem 0px !important;
+        margin-top: 10px;
+        transition: background-color 0.2s;
+    }}
+    .ref-blue-btn button:hover {{
+        background-color: #0066C6 !important;
+    }}
     
-    /* 세팅 상자 스타일 */
-    .setup-container {
+    .setup-container {{
         max-width: 480px;
         margin: 60px auto;
         background-color: #FFFFFF;
         padding: 2.5rem;
-        border-radius: 8px;
+        border-radius: 4px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         border-top: 5px solid #007BEC;
-    }
+    }}
     
-    @media (max-width: 768px) {
-        .block-container { padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
-        h1 { font-size: 1.35rem !important; }
-        div[data-testid="stMetricValue"] div { font-size: 1.2rem !important; }
-        button[data-baseweb="tab"] { font-size: 0.85rem !important; padding-left: 8px !important; padding-right: 8px !important; }
-        .stButton>button { font-size: 0.95rem !important; }
-    }
+    @media (max-width: 768px) {{
+        .reference-login-layout {{ justify-content: center; padding-right: 0; }}
+        .reference-dark-container {{ width: 92%; padding: 2.5rem 1.5rem !important; }}
+        .block-container {{ padding-left: 0.4rem !important; padding-right: 0.4rem !important; }}
+        h1 {{ font-size: 1.35rem !important; }}
+        div[data-testid="stMetricValue"] div {{ font-size: 1.2rem !important; }}
+    }}
     </style>
 """, unsafe_allow_html=True)
 
 # 0초 무지연 실시간 라이브 데이터 주소
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8/export?format=csv&gid=0"
 
-# 🔑 Secrets 상자에서 안전하게 환경 변수 호출
 if "MACRO_URL" in st.secrets:
     LIVE_MACRO_URL = st.secrets["MACRO_URL"]
     LIVE_SHEET_NAME = st.secrets.get("SHEET_NAME", "시트1")
@@ -182,7 +207,6 @@ else:
     LIVE_MACRO_URL = ""
     LIVE_SHEET_NAME = "시트1"
 
-# 중앙 구글 시트 셀 원격 직접 제어 함수
 def update_google_sheet(sheet_id, sheet_name, row_idx, col_idx, new_value):
     if not LIVE_MACRO_URL:
         return False
@@ -213,25 +237,6 @@ def load_data(url):
 
 df = load_data(SHEET_CSV_URL)
 
-# ----------------------------------------------------------------------
-# 🔐 인증 관련 세션 상태 정의
-# ----------------------------------------------------------------------
-if "auth_step" not in st.session_state:
-    st.session_state.auth_step = "login_gate"  # login_gate -> setup_gate -> main_app
-if "current_user" not in st.session_state:
-    st.session_state.current_user = None
-if "user_team" not in st.session_state:
-    st.session_state.user_team = None
-if "user_machine" not in st.session_state:
-    st.session_state.user_machine = None
-if "user_db" not in st.session_state:
-    # 초기 시연용 기본 가상 계정 명부 (ID : PW)
-    st.session_state.user_db = {"admin": "1234", "manager": "qwer"}
-
-
-# ----------------------------------------------------------------------
-# [공통 데이터 파싱 구조 유지] 로그인 이후 구동 최적화
-# ----------------------------------------------------------------------
 if df is not None:
     col_list = list(df.columns)
     c_id = col_list[0]          
@@ -256,100 +261,96 @@ if df is not None:
     df[c_life_m] = pd.to_numeric(df[c_life_m], errors='coerce').fillna(0).astype(int)
     df['남은시간'] = df[c_life_h] - df[c_curr_h]
 
+# 🔐 권한 상태 관리 초기화 및 유저 명부 확보
+if "auth_step" not in st.session_state:
+    st.session_state.auth_step = "login_gate"
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
+if "user_team" not in st.session_state:
+    st.session_state.user_team = None
+if "user_machine" not in st.session_state:
+    st.session_state.user_machine = None
+if "user_db" not in st.session_state:
+    st.session_state.user_db = {"admin": "1234", "manager": "qwer"}
+
 
 # ======================================================================
-# 📺 [STEP 1] 레퍼런스 스타일 완벽 모사 로그인 화면
+# 📺 [STEP 1] 요구 사양 지정 매칭 로그인 스크린
 # ======================================================================
 if st.session_state.auth_step == "login_gate":
-    # 배경 화면을 꽉 채우기 위한 기본 가상 여백 확보
-    st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+    # 배경 화면 주입 컨테이너 활성화
+    st.markdown("<div class='reference-fullscreen-wrapper'></div>", unsafe_allow_html=True)
     
-    # 🖼️ 사진 예시처럼 좌측엔 와이드 배경 전경 카드, 우측엔 짙은 로그인 폼 배치 (분할 배율 적용)
-    col_visual, col_auth = st.columns([1.4, 1], gap="large")
+    # 1번 모니터 사진의 화면 구도 일치화 형성
+    st.markdown("<div class='reference-login-layout'>", unsafe_allow_html=True)
+    st.markdown("<div class='reference-dark-container'>", unsafe_allow_html=True)
     
-    with col_visual:
-        # 사진 왼쪽의 건물 전경/공장 스킨 느낌을 프리미엄 UI 카드로 대치
-        st.markdown("""
-            <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.7) 100%), 
-                        url('https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1200'); 
-                        background-size: cover; background-position: center; height: 460px; border-radius: 6px; 
-                        display: flex; flex-direction: column; justify-content: flex-end; padding: 2.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                <h2 style='color: #FFFFFF !important; font-weight:800; font-size: 2.2rem; margin: 0;'>Smart MES Pro</h2>
-                <p style='color: #93C5FD; font-size: 1rem; font-weight:500; margin: 6px 0 0 0;'>제조 혁신 통합 관리 플랫폼 및 실시간 예방보전 엔진</p>
-            </div>
-        """, unsafe_allow_html=True)
+    st.markdown("<p class='ref-corp-title'>스마트 정비 프로</p>", unsafe_allow_html=True)
+    st.markdown("<p class='ref-sys-title'>Smart Maintenance Pro</p>", unsafe_allow_html=True)
+    
+    auth_inner_tab1, auth_inner_tab2 = st.tabs(["정비원 권한 로그인", "현장 대리인 신청"])
+    
+    with auth_inner_tab1:
+        st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+        in_id = st.text_input("아이디_입력필드", placeholder="아이디", label_visibility="collapsed", key="field_id_login")
+        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+        in_pw = st.text_input("비밀번호_입력필드", type="password", placeholder="비밀번호", label_visibility="collapsed", key="field_pw_login")
         
-    with col_auth:
-        auth_sub_tab1, auth_sub_tab2 = st.tabs(["🔒 시스템 로그인", "📝 신규 계정 등록"])
+        st.markdown("<div class='ref-blue-btn'>", unsafe_allow_html=True)
+        if st.button("로그인", use_container_width=True, key="action_login_submit"):
+            if in_id in st.session_state.user_db and st.session_state.user_db[in_id] == in_pw:
+                st.session_state.current_user = in_id
+                st.session_state.auth_step = "setup_gate"
+                st.rerun()
+            else:
+                st.error("❌ 아이디 또는 비밀번호가 불일치합니다.")
+        st.markdown("</div>", unsafe_allow_html=True)
         
-        with auth_sub_tab1:
-            st.markdown("<div class='reference-login-box'>", unsafe_allow_html=True)
-            st.markdown("<p class='ref-corp-title'>Smart MES Pro</p>", unsafe_allow_html=True)
-            st.markdown("<p class='ref-sys-title'>Smart MR</p>", unsafe_allow_html=True)
-            
-            # 레퍼런스 사진과 동일하게 상단 타이틀 텍스트 레이블을 제거(collapsed)하고 인풋 내부에 표시
-            in_id = st.text_input("아이디_레이블숨김", placeholder="아이디", label_visibility="collapsed", key="ref_id_gate")
-            st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-            in_pw = st.text_input("비밀번호_레이블숨김", type="password", placeholder="비밀번호", label_visibility="collapsed", key="ref_pw_gate")
-            
-            st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
-            
-            # 파란색 로그인 버튼 주입
-            st.markdown("<div class='ref-login-btn'>", unsafe_allow_html=True)
-            if st.button("로그인", use_container_width=True, key="ref_login_action_btn"):
-                if not in_id or not in_pw:
-                    st.warning("⚠️ 인증 정보를 채워주십시오.")
-                elif in_id in st.session_state.user_db and st.session_state.user_db[in_id] == in_pw:
-                    st.session_state.current_user = in_id
-                    st.session_state.auth_step = "setup_gate"
-                    st.rerun()
-                else:
-                    st.error("❌ 아이디 또는 비밀번호가 불일치합니다.")
-            st.markdown("</div>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-        with auth_sub_tab2:
-            st.markdown("<div class='reference-login-box' style='padding: 2rem 2.2rem !important;'>", unsafe_allow_html=True)
-            st.markdown("<h4 style='color:white; margin-top:0px !important; margin-bottom:15px;'>작업자 가입 신청</h4>", unsafe_allow_html=True)
-            reg_id = st.text_input("가입아이디", placeholder="새로운 아이디 입력", label_visibility="collapsed", key="reg_id_key")
-            st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
-            reg_pw = st.text_input("가입비밀번호", type="password", placeholder="새로운 비밀번호 입력", label_visibility="collapsed", key="reg_pw_key")
-            st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
-            reg_pw_c = st.text_input("가입비밀번호확인", type="password", placeholder="비밀번호 확인 재입력", label_visibility="collapsed", key="reg_pwc_key")
-            
-            st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
-            if st.button("계정 생성", use_container_width=True):
-                if not reg_id or not reg_pw:
-                    st.error("❌ 빈칸을 모두 입력하세요.")
-                elif reg_id in st.session_state.user_db:
-                    st.error("❌ 이미 할당된 아이디입니다.")
-                elif reg_pw != reg_pw_c:
-                    st.error("❌ 비밀번호 불일치")
-                else:
-                    st.session_state.user_db[reg_id] = reg_pw
-                    st.success("✅ 가입 완료! 로그인해 주십시오.")
+    with auth_inner_tab2:
+        st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+        reg_id = st.text_input("신규아이디_입력필드", placeholder="등록할 아이디", label_visibility="collapsed", key="field_id_reg")
+        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+        reg_pw = st.text_input("신규비밀번호_입력필드", type="password", placeholder="등록할 비밀번호", label_visibility="collapsed", key="field_pw_reg")
+        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+        reg_pw_c = st.text_input("신규확인_입력필드", type="password", placeholder="비밀번호 다시 입력", label_visibility="collapsed", key="field_pwc_reg")
+        
+        st.markdown("<div class='ref-blue-btn'>", unsafe_allow_html=True)
+        if st.button("신청서 제출", use_container_width=True, key="action_register_submit"):
+            if not reg_id or not reg_pw:
+                st.error("❌ 정보를 올바르게 채워주세요.")
+            elif reg_id in st.session_state.user_db:
+                st.error("❌ 사용 중인 계정명입니다.")
+            elif reg_pw != reg_pw_c:
+                st.error("❌ 비밀번호가 일치하지 않습니다.")
+            else:
+                st.session_state.user_db[reg_id] = reg_pw
+                st.success("✅ 등록 완료! 로그인 창을 이용하세요.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ======================================================================
-# ⚙️ [STEP 2] 공정 설정 및 기계 라인 권한 할당 화면
+# ⚙️ [STEP 2] 팀 설정 및 매칭된 기계 라우팅 기동 제어문
 # ======================================================================
 elif st.session_state.auth_step == "setup_gate":
     st.markdown("<div class='setup-container'>", unsafe_allow_html=True)
-    st.markdown("<h3>🏭 공정 실무 권한 설정</h3>", unsafe_allow_html=True)
-    st.write(f"접속 승인 계정: `{st.session_state.current_user} 마스터`")
+    st.markdown("<h3>🏭 스마트 공정 및 소속 설비 지정</h3>", unsafe_allow_html=True)
+    st.write(f"접속자 승인 계정: `{st.session_state.current_user}`")
     st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
     
     selected_team = st.selectbox("📌 소속 작업 부서/팀 선택", ["생산기술1팀", "제조운영2팀", "설비보전팀", "품질관리과"])
     
     if df is not None:
         machine_list = df[c_mach].unique()
-        selected_mach = st.selectbox("🏭 금일 담당 지정 설비 기계 설정", machine_list)
+        selected_mach = st.selectbox("🏭 금일 할당 담당 설비 지정", machine_list)
     else:
-        selected_mach = st.text_input("🏭 담당 기계 수동 기입 (마스터 연결 필요)")
+        selected_mach = st.text_input("🏭 설비 수동 할당 기입 (네트워크 에러)")
         
-    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
     
-    if st.button("개인 맞춤형 대시보드 진입 ➡️", type="primary", use_container_width=True):
+    if st.button("맞춤형 정비 대시보드 진입 ➡️", type="primary", use_container_width=True):
         st.session_state.user_team = selected_team
         st.session_state.user_machine = selected_mach
         st.session_state.auth_step = "main_app"
@@ -359,15 +360,15 @@ elif st.session_state.auth_step == "setup_gate":
 
 
 # ======================================================================
-# 📊 [STEP 3] 메인 고도화 MES 시스템 본문 (기존 코드 완벽 통합)
+# 📊 [STEP 3] 맞춤형 스마트 정비 프로 메인 관제 웹 앱 애플리케이션
 # ======================================================================
 elif st.session_state.auth_step == "main_app":
-    # 🔐 최상단 실시간 권한 네비게이션 및 세션 로그아웃 바 아키텍처
+    # 상단 톱바 레이아웃
     nav_col1, nav_col2 = st.columns([8, 2])
     with nav_col1:
-        st.caption(f"🛡️ {st.session_state.user_team} 전용 관제 가동 중 | 할당 설비: [{st.session_state.user_machine}] | 인증 계정: {st.session_state.current_user}")
+        st.caption(f"🔧 {st.session_state.user_team} 전용 | 할당 지정 라인: [{st.session_state.user_machine}] | 인증 책임 정비원: {st.session_state.current_user}")
     with nav_col2:
-        if st.button("🔒 로그아웃 / 권한 리셋", use_container_width=True, key="logout_action_btn"):
+        if st.button("🔒 안전 로그아웃", use_container_width=True):
             st.session_state.auth_step = "login_gate"
             st.session_state.current_user = None
             st.session_state.user_machine = None
@@ -388,7 +389,6 @@ elif st.session_state.auth_step == "main_app":
                 alert_display.columns = ['설비명', '부품명', '잔여(Hr)', '재고(EA)']
                 st.dataframe(alert_display, use_container_width=True, hide_index=True)
 
-        # 📊 상단 실시간 공정 자산 대시보드
         st.markdown("### 📊 실시간 공정 지표")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("총 관리 소모품 종류", f"{len(df)} 종류")
@@ -398,7 +398,6 @@ elif st.session_state.auth_step == "main_app":
         
         st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
         
-        # 📋 시각적 직관성을 강화한 4대 핵심 메뉴 탭 구성
         menu_tab1, menu_tab2, menu_tab3, menu_tab4 = st.tabs([
             "📋 1. 자산 관리 & 신품 교체", 
             "📝 2. 정비 일지 기록", 
@@ -412,12 +411,11 @@ elif st.session_state.auth_step == "main_app":
         with menu_tab1:
             st.markdown(f"""
                 <div class='menu-hero-banner'>
-                    <h3>📋 소모품 자산 관제 및 신품 교체실 (담당 설비 타겟: {st.session_state.user_machine})</h3>
+                    <h3>📋 소모품 자산 관제 및 신품 교체실 (매칭 타겟 설비: {st.session_state.user_machine})</h3>
                     <p>설비별 부품의 남은 수명을 실시간으로 모니터링하고, 신품 교체 시 마스터 데이터를 동기화하는 공간입니다.</p>
                 </div>
             """, unsafe_allow_html=True)
             
-            # 로그인 시 선택한 기계가 드롭다운 메뉴의 기본 시작 선택값(Index)으로 자동 바인딩되도록 업그레이드
             query_params = st.query_params
             session_mach = st.session_state.get("user_machine", df[c_mach].unique()[0])
             default_machine = query_params.get("machine", session_mach)
@@ -468,7 +466,7 @@ elif st.session_state.auth_step == "main_app":
                         st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
                         st.link_button("📄 표준 정비 매뉴얼 열람", manual_url.strip(), type="primary", use_container_width=True)
 
-                with st.expander("⚙️ 예외 변수 수동 수치 보정 (필요시에만 사용)"):
+                with st.expander("⚙️ 예외 변수 수동 수치 보정"):
                     new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info[c_curr_h]), step=10, key="adj_h")
                     new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
                     if st.button("💾 데이터 보정 명령 동기화", use_container_width=True):
@@ -482,12 +480,12 @@ elif st.session_state.auth_step == "main_app":
             with col2:
                 st.markdown("<span class='section-title'>3️⃣ 소모품 교체 및 자산 리셋</span>", unsafe_allow_html=True)
                 with st.container():
-                    st.warning(f"⚠️ **작업 확정 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래 단추를 누르면 **[운전시간 0Hr 리셋 / 여분재고 1개 차감 / 장착일 오늘 자동 갱신]**이 구글 시트에 영구 반영됩니다.")
+                    st.warning(f"⚠️ **작업 확정 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래 단추를 누르면 **[운전시간 0Hr 리셋 / 여분재고 1개 차감 / 장착일 오늘 자동 갱신]**이 구글 시트에 반영됩니다.")
                     chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 날짜 지정", datetime.date.today(), key="exec_date_picker")
                     
                     if st.button("교체 확정 처리 완료", type="primary", use_container_width=True):
                         if part_info[c_stock] <= 0:
-                            st.error("❌ 창고 내 여분 재고 자산이 부족(0개)하여 교체 명령을 수행할 수 없습니다.")
+                            st.error("❌ 창고 내 여분 재고 자산이 부족하여 교체 명령을 수행할 수 없습니다.")
                         else:
                             with st.spinner("중앙 ERP 스프레드시트 클라우드 원격 갱신 중..."):
                                 reset_hours = 0
@@ -502,7 +500,7 @@ elif st.session_state.auth_step == "main_app":
                                     "날짜": formatted_install_date,
                                     "부품명": selected_part,
                                     "작업자": st.session_state.current_user,
-                                    "정비내용": f"[신품 교체 완수] {st.session_state.user_team} 부서 조치 완료."
+                                    "정비내용": f"[신품 교체 완수] {st.session_state.user_team} 담당 정비 조치 완료."
                                 }
                                 st.session_state.temp_logs.insert(0, auto_system_log)
                                 st.success(f"🎉 [{selected_part}] 신품 장착 처리 및 스케줄링 리셋이 완벽하게 완수되었습니다.")
@@ -528,13 +526,13 @@ elif st.session_state.auth_step == "main_app":
                 with q_col2: st.code(qr_link)
 
         # ----------------------------------------------------------------------
-        # [메뉴 2] 정비 일지 기록 탭 (현재 접속 유저 정보 기본 대입 연동)
+        # [메뉴 2] 정비 일지 기록 탭
         # ----------------------------------------------------------------------
         with menu_tab2:
             st.markdown("""
                 <div class='menu-hero-banner'>
                     <h3>📝 제조 설비 일일 정비·교체 일지 관리실</h3>
-                    <p>현장에서 수행한 일상 보전 내역, 고장 처리 및 유격 조정 조치 사항을 수동 기입하고 누적 타임라인을 확인합니다.</p>
+                    <p>현장에서 수행한 일상 보전 내역, 고장 처리 및 유격 조정 조치 사항을 기록합니다.</p>
                 </div>
             """, unsafe_allow_html=True)
             
@@ -545,7 +543,6 @@ elif st.session_state.auth_step == "main_app":
                 with st.container():
                     log_date = st.date_input("정비 및 작업 실행 일자", datetime.date.today(), key="m_log_date")
                     
-                    # 로그인 시 권한 선택한 기계로 기본 디폴트 선택
                     mach_log_options = list(df[c_mach].unique())
                     default_log_mach_idx = mach_log_options.index(st.session_state.user_machine) if st.session_state.user_machine in mach_log_options else 0
                     log_mach = st.selectbox("정비 대상 설비 선택", mach_log_options, index=default_log_mach_idx, key="m_log_mach")
@@ -553,7 +550,7 @@ elif st.session_state.auth_step == "main_app":
                     filtered_log_df = df[df[c_mach] == log_mach]
                     log_part = st.selectbox("정비 처리 부품 선택", filtered_log_df[c_name].unique(), key="m_log_part")
                     
-                    # 💡 현재 로그인 세션에 보유 중인 팀과 아이디 자동 문자열 매핑 적용
+                    # 💡 로그인 한 팀 및 작업자 자동 기입 연동 완료
                     log_worker = st.text_input("작업 정비원 성명 기입", value=f"{st.session_state.user_team} {st.session_state.current_user}", key="m_log_worker")
                     log_content = st.text_area("상세 정비 작업 내역 기술", placeholder="예: 구동 기어 유격 측정 후 중심 정렬 및 볼트 고정 록타이트 처리.", key="m_log_content")
                     
@@ -589,16 +586,13 @@ elif st.session_state.auth_step == "main_app":
             st.markdown("""
                 <div class='menu-hero-banner'>
                     <h3>📸 AI 실시간 스마트 현장 비전 진단실</h3>
-                    <p>마모된 부품이나 외관 손상이 의심되는 기계 부위를 촬영하십시오. 고성능 비전 엔진이 균열 및 오염도를 즉시 진단합니다.</p>
+                    <p>마모된 부품 사진을 찍어 올리시면 인공지능이 손상도를 진단합니다.</p>
                 </div>
             """, unsafe_allow_html=True)
             
-            if "GEMINI_API_KEY" in st.secrets:
-                vision_api_key = st.secrets["GEMINI_API_KEY"]
-                st.success("🟢 클라우드 공용 AI 보안 엔진이 안전하게 연동되어 있습니다.")
-            else:
-                vision_api_key = ""
-                st.error("⚠️ [알림] 공용으로 사용하시려면 Streamlit Settings -> Secrets 메뉴에 GEMINI_API_KEY를 등록해 주세요.")
+            vision_api_key = st.secrets.get("GEMINI_API_KEY", "")
+            if vision_api_key: st.success("🟢 클라우드 공용 AI 보안 엔진이 안전하게 연동되어 있습니다.")
+            else: st.error("⚠️ GEMINI_API_KEY를 Secrets에 등록해 주세요.")
             
             v_col1, v_col2 = st.columns([1, 1.2], gap="medium")
             
@@ -619,7 +613,7 @@ elif st.session_state.auth_step == "main_app":
             with v_col2:
                 st.markdown("<span class='section-title'>2️⃣ AI 비전 실시간 진단 및 정비 권고안</span>", unsafe_allow_html=True)
                 if captured_file is None:
-                    st.info("💡 안내: 왼쪽 입력 장치에서 카메라로 사진을 찍거나 파일을 등록하시면 실시간 분석 대기 모드로 전환됩니다.")
+                    st.info("💡 안내: 사진을 촬영하시거나 파일을 등록하면 분석이 활성화됩니다.")
                 else:
                     if st.button("🚀 이미지 비전 해독 및 진단 분석 시작", type="primary", use_container_width=True):
                         with st.spinner("AI가 고해상도 픽셀 분석을 통해 사물을 해독하는 중..."):
@@ -665,7 +659,7 @@ elif st.session_state.auth_step == "main_app":
             st.markdown("""
                 <div class='menu-hero-banner'>
                     <h3>💬 AI 정비 챗봇</h3>
-                    <p>설비 구동부 트러블슈팅, 기계공학 조치 지식, 볼트 체결 토크값 등 현장 애로사항에 대한 솔루션을 실시간으로 논의합니다.</p>
+                    <p>설비 구동부 트러블슈팅, 기계공학 조치 지식 등 현장 애로사항에 대한 솔루션을 논의합니다.</p>
                 </div>
             """, unsafe_allow_html=True)
             
@@ -682,16 +676,13 @@ elif st.session_state.auth_step == "main_app":
             st.markdown("<span class='section-title'>💬 1:1 대화 챗봇</span>", unsafe_allow_html=True)
             with st.container():
                 for msg in st.session_state.chat_history:
-                    with st.chat_message(msg["role"]):
-                        st.write(msg["content"])
+                    with st.chat_message(msg["role"]): st.write(msg["content"])
                     
             if user_prompt := st.chat_input("정비 문제 상황이나 기계 질문을 타이핑하세요"):
-                with st.chat_message("user"):
-                    st.write(user_prompt)
+                with st.chat_message("user"): st.write(user_prompt)
                 st.session_state.chat_history.append({"role": "user", "content": user_prompt})
                 
-                if not chat_api_key:
-                    st.error("❌ 대시보드 Secrets에 GEMINI_API_KEY가 세팅되어 있지 않습니다.")
+                if not chat_api_key: st.error("❌ 대시보드 Secrets에 GEMINI_API_KEY가 세팅되어 있지 않습니다.")
                 else:
                     with st.chat_message("assistant"):
                         with st.spinner("정비 챗봇이 조치 방안을 도출하는 중..."):
