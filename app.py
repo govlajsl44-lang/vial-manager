@@ -13,42 +13,42 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 로컬 이미지 파일(정관장 이미지.jpg)을 연한 웹 배경으로 자동 변환하기 위한 Base64 디코더
+# 로컬 이미지 파일(정관장 이미지.jpg)을 연한 웹 배경으로 안전하게 로드하는 함수
 def get_base64_encoded_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
             return f"data:image/jpeg;base64,{base64.b64encode(img_file.read()).decode()}"
-    # 파일이 없을 경우 작동할 투명 스킨용 대치 고화질 스마트 공장 백그라운드 소스
+    # 파일 경로를 찾지 못할 때 작동할 백업용 고화질 스마트 공장 이미지 URL
     return "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1600"
 
 bg_target_file = "정관장 이미지.jpg"
 encoded_bg = get_base64_encoded_image(bg_target_file)
 
-# 📱 모바일 및 웹 동시 최적화 프리미엄 하이브리드 CSS 테마 주입
-st.markdown(f"""
+# 📱 괄호 충돌 오류(SyntaxError)를 원천 차단하기 위해 일반 문자열 구조로 CSS 주입
+css_style = """
     <style>
     /* 기본 배경 및 여백 설정 */
-    header[data-testid="stHeader"] {{
+    header[data-testid="stHeader"] {
         visibility: hidden !important;
         height: 0px !important;
     }
     
-    .main {{ background-color: #F8FAFC !important; }}
-    .block-container {{ padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }}
+    .main { background-color: #F8FAFC !important; }
+    .block-container { padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }
     
     /* 타이틀 모바일 최적화 */
-    h1 {{
+    h1 {
         color: #0F172A !important;
         font-weight: 800 !important;
         font-size: 1.8rem !important;
         border-bottom: 3px solid #007BEC;
         padding-bottom: 8px;
         margin-bottom: 15px !important;
-    }}
-    h2, h3, h4 {{ color: #1E293B !important; font-weight: 700 !important; margin-top: 0.8rem !important; }}
+    }
+    h2, h3, h4 { color: #1E293B !important; font-weight: 700 !important; margin-top: 0.8rem !important; }
     
     /* 대형 관제 메트릭 카드 가시성 확보 */
-    div[data-testid="stMetric"] {{
+    div[data-testid="stMetric"] {
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
         border-top: 4px solid #007BEC !important;
@@ -56,31 +56,31 @@ st.markdown(f"""
         border-radius: 8px !important;
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05) !important;
         margin-bottom: 8px !important;
-    }}
-    div[data-testid="stMetricLabel"] p {{ font-size: 0.8rem !important; color: #475569 !important; font-weight: 700 !important; }}
-    div[data-testid="stMetricValue"] div {{ font-size: 1.4rem !important; font-weight: 800 !important; color: #0F172A !important; }}
+    }
+    div[data-testid="stMetricLabel"] p { font-size: 0.8rem !important; color: #475569 !important; font-weight: 700 !important; }
+    div[data-testid="stMetricValue"] div { font-size: 1.4rem !important; font-weight: 800 !important; color: #0F172A !important; }
     
-    /* 모바일 스크롤용 카드 형태 컨테이너 */
-    div[data-testid="stContainer"] {{
+    /* 카드 형태 컨테이너 */
+    div[data-testid="stContainer"] {
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
         padding: 1.2rem !important;
         border-radius: 8px !important;
         box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important;
         margin-bottom: 15px !important;
-    }}
+    }
     
-    .stButton>button {{ 
+    .stButton>button { 
         font-weight: 700 !important; 
         border-radius: 4px !important; 
         padding: 0.6rem 1rem !important;
         font-size: 1rem !important;
-    }}
+    }
     
-    button[data-baseweb="tab"] {{ font-size: 0.95rem !important; font-weight: 700 !important; color: #64748B !important; }}
-    button[aria-selected="true"] {{ color: #007BEC !important; border-bottom-color: #007BEC !important; }}
+    button[data-baseweb="tab"] { font-size: 0.95rem !important; font-weight: 700 !important; color: #64748B !important; }
+    button[aria-selected="true"] { color: #007BEC !important; border-bottom-color: #007BEC !important; }
     
-    .section-title {{
+    .section-title {
         background-color: #E0F2FE;
         color: #0369A1;
         padding: 6px 12px;
@@ -89,9 +89,9 @@ st.markdown(f"""
         font-size: 1rem;
         margin-bottom: 10px;
         display: inline-block;
-    }}
+    }
     
-    .menu-hero-banner {{
+    .menu-hero-banner {
         background: linear-gradient(135deg, #007BEC 0%, #0059B2 100%);
         color: #FFFFFF !important;
         padding: 1rem !important;
@@ -99,70 +99,67 @@ st.markdown(f"""
         margin-bottom: 15px !important;
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
     }
-    .menu-hero-banner h3 {{ color: #FFFFFF !important; margin: 0 0 5px 0 !important; font-size: 1.2rem !important; }}
-    .menu-hero-banner p {{ color: #E0F2FE !important; margin: 0 !important; font-size: 0.85rem !important; }}
+    .menu-hero-banner h3 { color: #FFFFFF !important; margin: 0 0 5px 0 !important; font-size: 1.2rem !important; }
+    .menu-hero-banner p { color: #E0F2FE !important; margin: 0 !important; font-size: 0.85rem !important; }
     
-    /* ----------------------------------------------------------- */
-    /* 📸 레퍼런스 1번 레이아웃 구조 & 2번 연한 배경 합성 인프라 단독 정의 */
-    /* ----------------------------------------------------------- */
-    .reference-fullscreen-wrapper {{
+    /* 📸 배경 위에 마스크를 씌워 연하게 정관장 이미지 배치 */
+    .reference-fullscreen-wrapper {
         position: fixed;
         top: 0; left: 0; width: 100vw; height: 100vh;
-        /* 사진 2번을 연하고 부드러운 오버레이 마스크(화이트 블렌딩 88%)로 감싸 대입 */
-        background: linear-gradient(rgba(241, 245, 249, 0.88), rgba(241, 245, 249, 0.88)), url('{encoded_bg}');
+        background: linear-gradient(rgba(241, 245, 249, 0.88), rgba(241, 245, 249, 0.88)), url('BG_IMAGE_PLACEHOLDER');
         background-size: cover;
         background-position: center;
         z-index: -1;
-    }}
+    }
     
-    .reference-login-layout {{
+    .reference-login-layout {
         display: flex;
-        justify-content: flex-end; /* 1번 예시 모니터와 동일하게 우측에 완전히 붙도록 유도 */
+        justify-content: flex-end; 
         align-items: center;
         min-height: 80vh;
         padding-right: 8%;
-    }}
+    }
     
-    .reference-dark-container {{
-        background-color: rgba(30, 30, 30, 0.93) !important; /* 이미지 속의 짙은 차콜 박스 */
+    .reference-dark-container {
+        background-color: rgba(30, 30, 30, 0.93) !important; 
         border: 1px solid #333333 !important;
         width: 440px;
         padding: 3.5rem 2.5rem !important;
-        border-radius: 2px !important; /* 직사각형 플랫 엣지 디자인 */
+        border-radius: 2px !important; 
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
         text-align: center;
-    }}
+    }
     
-    .ref-corp-title {{
+    .ref-corp-title {
         font-size: 1.6rem !important;
         font-weight: 800 !important;
         color: #FFFFFF !important;
         margin-bottom: 0px !important;
         letter-spacing: -0.5px;
-    }}
-    .ref-sys-title {{
+    }
+    .ref-sys-title {
         font-size: 1.1rem !important;
         font-weight: 400 !important;
         color: #999999 !important;
         margin-bottom: 2.2rem !important;
-    }}
+    }
     
-    /* 1번 양식 모사: 테두리 각진 투명 인풋 및 기본 레이블 공간 증발(collapsed) 처리 */
-    div[data-testid="stTextInput"] input {{
+    /* 레이블 없는 깔끔한 인풋 창 스타일 */
+    div[data-testid="stTextInput"] input {
         background-color: rgba(255, 255, 255, 0.07) !important;
         color: #FFFFFF !important;
         border: 1px solid #444444 !important;
         border-radius: 1px !important;
         padding: 0.7rem 0.9rem !important;
         font-size: 1rem !important;
-    }}
-    div[data-testid="stTextInput"] input:focus {{
+    }
+    div[data-testid="stTextInput"] input:focus {
         border-color: #007BEC !important;
         box-shadow: 0 0 0 1px #007BEC !important;
-    }}
+    }
     
-    /* 선명하고 플랫한 직사각형 블루 버튼 정의 */
-    .ref-blue-btn button {{
+    /* 직사각형 블루 로그인 버튼 */
+    .ref-blue-btn button {
         background-color: #007BEC !important; 
         color: #FFFFFF !important;
         font-weight: 700 !important;
@@ -172,12 +169,12 @@ st.markdown(f"""
         padding: 0.75rem 0px !important;
         margin-top: 10px;
         transition: background-color 0.2s;
-    }}
-    .ref-blue-btn button:hover {{
+    }
+    .ref-blue-btn button:hover {
         background-color: #0066C6 !important;
-    }}
+    }
     
-    .setup-container {{
+    .setup-container {
         max-width: 480px;
         margin: 60px auto;
         background-color: #FFFFFF;
@@ -185,17 +182,19 @@ st.markdown(f"""
         border-radius: 4px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         border-top: 5px solid #007BEC;
-    }}
+    }
     
-    @media (max-width: 768px) {{
-        .reference-login-layout {{ justify-content: center; padding-right: 0; }}
-        .reference-dark-container {{ width: 92%; padding: 2.5rem 1.5rem !important; }}
-        .block-container {{ padding-left: 0.4rem !important; padding-right: 0.4rem !important; }}
-        h1 {{ font-size: 1.35rem !important; }}
-        div[data-testid="stMetricValue"] div {{ font-size: 1.2rem !important; }}
-    }}
+    @media (max-width: 768px) {
+        .reference-login-layout { justify-content: center; padding-right: 0; }
+        .reference-dark-container { width: 92%; padding: 2.5rem 1.5rem !important; }
+        .block-container { padding-left: 0.4rem !important; padding-right: 0.4rem !important; }
+        h1 { font-size: 1.35rem !important; }
+        div[data-testid="stMetricValue"] div { font-size: 1.2rem !important; }
+    }
     </style>
-""", unsafe_allow_html=True)
+""".replace("BG_IMAGE_PLACEHOLDER", encoded_bg)
+
+st.markdown(css_style, unsafe_allow_html=True)
 
 # 0초 무지연 실시간 라이브 데이터 주소
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8/export?format=csv&gid=0"
@@ -261,7 +260,7 @@ if df is not None:
     df[c_life_m] = pd.to_numeric(df[c_life_m], errors='coerce').fillna(0).astype(int)
     df['남은시간'] = df[c_life_h] - df[c_curr_h]
 
-# 🔐 권한 상태 관리 초기화 및 유저 명부 확보
+# 🔐 세션 권한 제어 변수 정의
 if "auth_step" not in st.session_state:
     st.session_state.auth_step = "login_gate"
 if "current_user" not in st.session_state:
@@ -278,10 +277,7 @@ if "user_db" not in st.session_state:
 # 📺 [STEP 1] 요구 사양 지정 매칭 로그인 스크린
 # ======================================================================
 if st.session_state.auth_step == "login_gate":
-    # 배경 화면 주입 컨테이너 활성화
     st.markdown("<div class='reference-fullscreen-wrapper'></div>", unsafe_allow_html=True)
-    
-    # 1번 모니터 사진의 화면 구도 일치화 형성
     st.markdown("<div class='reference-login-layout'>", unsafe_allow_html=True)
     st.markdown("<div class='reference-dark-container'>", unsafe_allow_html=True)
     
@@ -363,7 +359,6 @@ elif st.session_state.auth_step == "setup_gate":
 # 📊 [STEP 3] 맞춤형 스마트 정비 프로 메인 관제 웹 앱 애플리케이션
 # ======================================================================
 elif st.session_state.auth_step == "main_app":
-    # 상단 톱바 레이아웃
     nav_col1, nav_col2 = st.columns([8, 2])
     with nav_col1:
         st.caption(f"🔧 {st.session_state.user_team} 전용 | 할당 지정 라인: [{st.session_state.user_machine}] | 인증 책임 정비원: {st.session_state.current_user}")
@@ -405,9 +400,6 @@ elif st.session_state.auth_step == "main_app":
             "💬 4. AI 정비 챗봇"
         ])
 
-        # ----------------------------------------------------------------------
-        # [메뉴 1] 자산 관리 & 신품 교체 탭
-        # ----------------------------------------------------------------------
         with menu_tab1:
             st.markdown(f"""
                 <div class='menu-hero-banner'>
@@ -525,9 +517,6 @@ elif st.session_state.auth_step == "main_app":
                 with q_col1: st.image(qr_api_url, caption="정비 태그 QR")
                 with q_col2: st.code(qr_link)
 
-        # ----------------------------------------------------------------------
-        # [메뉴 2] 정비 일지 기록 탭
-        # ----------------------------------------------------------------------
         with menu_tab2:
             st.markdown("""
                 <div class='menu-hero-banner'>
@@ -550,7 +539,6 @@ elif st.session_state.auth_step == "main_app":
                     filtered_log_df = df[df[c_mach] == log_mach]
                     log_part = st.selectbox("정비 처리 부품 선택", filtered_log_df[c_name].unique(), key="m_log_part")
                     
-                    # 💡 로그인 한 팀 및 작업자 자동 기입 연동 완료
                     log_worker = st.text_input("작업 정비원 성명 기입", value=f"{st.session_state.user_team} {st.session_state.current_user}", key="m_log_worker")
                     log_content = st.text_area("상세 정비 작업 내역 기술", placeholder="예: 구동 기어 유격 측정 후 중심 정렬 및 볼트 고정 록타이트 처리.", key="m_log_content")
                     
@@ -579,9 +567,6 @@ elif st.session_state.auth_step == "main_app":
                     log_df_display = pd.DataFrame(display_logs)
                     st.dataframe(log_df_display, use_container_width=True, hide_index=True)
 
-        # ----------------------------------------------------------------------
-        # [메뉴 3] AI 카메라 진단 탭
-        # ----------------------------------------------------------------------
         with menu_tab3:
             st.markdown("""
                 <div class='menu-hero-banner'>
@@ -652,9 +637,6 @@ elif st.session_state.auth_step == "main_app":
                             except Exception as error_msg:
                                 st.error(f"❌ AI 분석 모듈 연동 중 오류가 발생했습니다: {error_msg}")
 
-        # ----------------------------------------------------------------------
-        # [메뉴 4] AI 정비 챗봇 탭
-        # ----------------------------------------------------------------------
         with menu_tab4:
             st.markdown("""
                 <div class='menu-hero-banner'>
