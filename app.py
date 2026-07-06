@@ -6,27 +6,27 @@ import requests
 import base64
 import os
 
-# 1. 하이브리드 반응형 페이지 레이아웃 정의
+# ======================================================================
+# 1. 페이지 및 레이아웃 설정
+# ======================================================================
 st.set_page_config(
     page_title="Smart Maintenance Pro", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# 로컬 이미지 파일(정관장 이미지.jpg)을 웹 배경에 맞게 인코딩하는 함수
+# 로컬 이미지 파일 인코딩 함수
 def get_base64_encoded_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
             return f"data:image/jpeg;base64,{base64.b64encode(img_file.read()).decode()}"
-    # 파일이 동일 폴더에 없을 경우 작동할 백업용 스마트 공장 이미지
     return "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1600"
 
-bg_target_file = "정관장 이미지.jpg"
-encoded_bg = get_base64_encoded_image(bg_target_file)
+encoded_bg = get_base64_encoded_image("정관장 이미지.jpg")
 
-# ----------------------------------------------------------------------
-# 🔐 인증 관련 세션 상태 초기화
-# ----------------------------------------------------------------------
+# ======================================================================
+# 2. 🔐 인증 관련 세션 상태 초기화
+# ======================================================================
 if "auth_step" not in st.session_state:
     st.session_state.auth_step = "login_gate"
 if "current_user" not in st.session_state:
@@ -35,110 +35,63 @@ if "user_team" not in st.session_state:
     st.session_state.user_team = None
 if "user_machine" not in st.session_state:
     st.session_state.user_machine = None
-if "user_db" not in st.session_state:
-    st.session_state.user_db = {"admin": "1234", "manager": "qwer"}
 if "temp_logs" not in st.session_state:
     st.session_state.temp_logs = []
-
+if "user_db" not in st.session_state:
+    # 딕셔너리 형태로 고도화된 유저 DB 구조 반영
+    st.session_state.user_db = {
+        "admin": {"password": "1234", "name": "관리자", "sabun": "9999", "team": "설비보전팀"}
+    }
 
 # ======================================================================
-# 🎨 [화면별 맞춤형 테마 주입 엔진]
+# 3. 🎨 [통합 CSS 디자인 엔진]
 # ======================================================================
-if st.session_state.auth_step == "login_gate":
-    # 📺 [로그인 화면 전용 스킨] - 2번 이미지를 연하게 깔고, 우측 컬럼을 1번 느낌의 차콜 박스로 변환
-    login_css = """
-        <style>
-        /* 1. 스트림릿 상단 헤더 제거 */
-        header[data-testid="stHeader"] { visibility: hidden !important; height: 0px !important; }
-        
-        /* 2. 전체 배경화면에 2번 정관장 이미지를 연하게(화이트 블렌딩 86%) 오버레이 주입 */
-        div[data-testid="stAppViewContainer"] {
-            background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('BG_IMAGE_PLACEHOLDER') !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-attachment: fixed !important;
-        }
-        .main { background: transparent !important; }
-        
-        /* 3. 우측 레이아웃 컬럼(2번째 자식)을 1번 예시의 '각진 차콜 블랙 박스'로 직접 강제 변환 */
-        div[data-testid="stHorizontalBlock"] > div:nth-child(2) {
-            background-color: rgba(34, 34, 34, 0.96) !important;
-            border: 1px solid #333333 !important;
-            padding: 3.5rem 2.5rem !important;
-            border-radius: 2px !important;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4) !important;
-            margin-top: 10vh;
-        }
-        
-        /* 4. 박스 내부의 탭(로그인/회원가입) 글자색 최적화 */
-        div[data-testid="stHorizontalBlock"] > div:nth-child(2) button[data-baseweb="tab"] {
-            color: #A3A3A3 !important;
-            font-size: 0.95rem !important;
-            font-weight: 700 !important;
-        }
-        div[data-testid="stHorizontalBlock"] > div:nth-child(2) button[aria-selected="true"] {
-            color: #007BEC !important;
-            border-bottom-color: #007BEC !important;
-        }
-        
-        /* 5. 1번 사진 전용: 테두리가 정밀하고 내부가 보이지 않는 투명 인풋창 커스텀 */
-        div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stTextInput"] input {
-            background-color: rgba(255, 255, 255, 0.06) !important;
-            color: #FFFFFF !important;
-            border: 1px solid #444444 !important;
-            border-radius: 2px !important;
-            padding: 0.7rem 0.9rem !important;
-            font-size: 1rem !important;
-        }
-        div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stTextInput"] input:focus {
-            border-color: #007BEC !important;
-            box-shadow: 0 0 0 1px #007BEC !important;
-        }
-        
-        /* 6. 1번 사진 전용: 아주 선명하고 완벽하게 각진 직사각형 블루 로그인 버튼 */
-        div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button {
-            background-color: #007BEC !important;
-            color: #FFFFFF !important;
-            font-weight: 700 !important;
-            font-size: 1.1rem !important;
-            border: none !important;
-            border-radius: 2px !important;
-            width: 100% !important;
-            padding: 0.75rem 0px !important;
-            margin-top: 10px;
-            transition: background-color 0.2s;
-        }
-        div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button:hover {
-            background-color: #0066C6 !important;
-        }
-        </style>
-    """.replace("BG_IMAGE_PLACEHOLDER", encoded_bg)
-    st.markdown(login_css, unsafe_allow_html=True)
-else:
-    # 📊 [본문 진입 후 전용 대시보드 스킨] - 화이트 기반의 깔끔하고 높은 가시성의 프리미엄 MES 테마
-    main_css = """
-        <style>
-        header[data-testid="stHeader"] { visibility: hidden !important; height: 0px !important; }
-        .main { background-color: #F8FAFC !important; }
-        .block-container { padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }
-        h1 { color: #0F172A !important; font-weight: 800 !important; font-size: 1.8rem !important; border-bottom: 3px solid #007BEC; padding-bottom: 8px; margin-bottom: 15px !important; }
-        div[data-testid="stMetric"] { background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-top: 4px solid #007BEC !important; padding: 0.8rem !important; border-radius: 8px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05) !important; margin-bottom: 8px !important; }
-        div[data-testid="stMetricLabel"] p { font-size: 0.8rem !important; color: #475569 !important; font-weight: 700 !important; }
-        div[data-testid="stMetricValue"] div { font-size: 1.4rem !important; font-weight: 800 !important; color: #0F172A !important; }
-        div[data-testid="stContainer"] { background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; padding: 1.2rem !important; border-radius: 8px !important; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important; margin-bottom: 15px !important; }
-        .stButton>button { font-weight: 700 !important; border-radius: 4px !important; padding: 0.6rem 1rem !important; font-size: 1rem !important; }
-        button[data-baseweb="tab"] { font-size: 0.95rem !important; font-weight: 700 !important; color: #64748B !important; }
-        button[aria-selected="true"] { color: #007BEC !important; border-bottom-color: #007BEC !important; }
-        .section-title { background-color: #E0F2FE; color: #0369A1; padding: 6px 12px; border-radius: 4px; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: inline-block; }
-        .menu-hero-banner { background: linear-gradient(135deg, #007BEC 0%, #0059B2 100%); color: #FFFFFF !important; padding: 1rem !important; border-radius: 8px !important; margin-bottom: 15px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important; }
-        .menu-hero-banner h3 { color: #FFFFFF !important; margin: 0 0 5px 0 !important; font-size: 1.2rem !important; }
-        .menu-hero-banner p { color: #E0F2FE !important; margin: 0 !important; font-size: 0.85rem !important; }
-        .setup-container { max-width: 480px; margin: 60px auto; background-color: #FFFFFF; padding: 2.5rem; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 5px solid #007BEC; }
-        </style>
-    """
-    st.markdown(main_css, unsafe_allow_html=True)
+global_css = f"""
+    <style>
+    /* 상단 메뉴바 및 로고 완전 삭제 */
+    header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
+    div[data-testid="stToolbar"] {{ visibility: hidden !important; }}
+    #MainMenu {{ visibility: hidden !important; }}
+    footer {{ visibility: hidden !important; }}
+    
+    /* 공통 배경 설정 */
+    div[data-testid="stAppViewContainer"] {{
+        background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-attachment: fixed !important;
+    }}
+    .main {{ background: transparent !important; }}
+    
+    /* 검은 상자 디자인 (라운드 8px) - 로그인 및 셋업 화면 전용 */
+    .styled-card {{
+        background-color: rgba(34, 34, 34, 0.96) !important;
+        border-radius: 8px !important;
+        padding: 30px !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+        margin-top: 5vh;
+        margin-bottom: 5vh;
+    }}
+    
+    /* 메인 대시보드 컴포넌트(Metric, 버튼 등) 프리미엄 테마 유지 */
+    .block-container {{ padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }}
+    h1 {{ color: #0F172A !important; font-weight: 800 !important; font-size: 1.8rem !important; border-bottom: 3px solid #007BEC; padding-bottom: 8px; margin-bottom: 15px !important; }}
+    div[data-testid="stMetric"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-top: 4px solid #007BEC !important; padding: 0.8rem !important; border-radius: 8px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05) !important; margin-bottom: 8px !important; }}
+    div[data-testid="stMetricLabel"] p {{ font-size: 0.8rem !important; color: #475569 !important; font-weight: 700 !important; }}
+    div[data-testid="stMetricValue"] div {{ font-size: 1.4rem !important; font-weight: 800 !important; color: #0F172A !important; }}
+    div[data-testid="stContainer"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; padding: 1.2rem !important; border-radius: 8px !important; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important; margin-bottom: 15px !important; }}
+    .section-title {{ background-color: #E0F2FE; color: #0369A1; padding: 6px 12px; border-radius: 4px; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: inline-block; }}
+    .menu-hero-banner {{ background: linear-gradient(135deg, #007BEC 0%, #0059B2 100%); color: #FFFFFF !important; padding: 1rem !important; border-radius: 8px !important; margin-bottom: 15px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important; }}
+    .menu-hero-banner h3 {{ color: #FFFFFF !important; margin: 0 0 5px 0 !important; font-size: 1.2rem !important; }}
+    .menu-hero-banner p {{ color: #E0F2FE !important; margin: 0 !important; font-size: 0.85rem !important; }}
+    </style>
+"""
+st.markdown(global_css, unsafe_allow_html=True)
 
-# 0초 무지연 실시간 라이브 데이터 주소
+# ======================================================================
+# 4. 데이터 로드 및 통신 모듈
+# ======================================================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8/export?format=csv&gid=0"
 
 if "MACRO_URL" in st.secrets:
@@ -199,50 +152,38 @@ if df is not None:
     df[c_life_m] = pd.to_numeric(df[c_life_m], errors='coerce').fillna(0).astype(int)
     df['남은시간'] = df[c_life_h] - df[c_curr_h]
 
-
 # ======================================================================
-# 📺 [STEP 1] 레퍼런스 이미지 완벽 구현 로그인 인터페이스
+# 📺 [STEP 1] 중앙 정렬 로그인 인터페이스
 # ======================================================================
 if st.session_state.auth_step == "login_gate":
-    st.markdown("<div style='margin-top: 4vh;'></div>", unsafe_allow_html=True)
-    
-    # 1번 모니터 사진 구도와 완벽하게 일치하도록 좌우 분할 (우측 박스 집중형)
-    col_left_space, col_login_card = st.columns([1.5, 1], gap="large")
-    
-    with col_left_space:
-        # 좌측 여백은 배경 이미지가 은은하게 투과되어 보이는 공간입니다.
-        st.write("")
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        st.markdown('<div class="styled-card">', unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center; color:white; font-weight: 800; margin-bottom: 0;'>스마트 정비 앱</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#AAAAAA; margin-bottom: 25px;'>KGC 인삼공사</p>", unsafe_allow_html=True)
         
-    with col_login_card:
-        # 상단 기업 및 시스템 텍스트 로고 모사
-        st.markdown("<h2 style='color: #FFFFFF !important; text-align: center; font-weight: 800; font-size: 1.7rem; margin-bottom: 2px;'>스마트 정비 프로</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #888888 !important; text-align: center; font-size: 1rem; margin-bottom: 25px; font-weight: 400;'>Smart Maintenance Pro</p>", unsafe_allow_html=True)
+        tab1, tab2 = st.tabs(["로그인", "회원가입"])
         
-        auth_inner_tab1, auth_inner_tab2 = st.tabs(["정비원 로그인", "현장 대리인 신청"])
-        
-        with auth_inner_tab1:
-            st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
-            # label_visibility="collapsed" 처리를 통해 외부 레이블을 없애고 인풋 박스만 정밀하게 노출
-            in_id = st.text_input("아이디_필드", placeholder="아이디", label_visibility="collapsed", key="field_id_login")
-            st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
-            in_pw = st.text_input("비밀번호_필드", type="password", placeholder="비밀번호", label_visibility="collapsed", key="field_pw_login")
+        with tab1:
+            st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+            in_id = st.text_input("아이디", placeholder="아이디를 입력하세요", key="l_id")
+            in_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호를 입력하세요", key="l_pw")
             
             st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-            if st.button("로그인", use_container_width=True, key="action_login_submit"):
-                if in_id in st.session_state.user_db and st.session_state.user_db[in_id] == in_pw:
+            if st.button("로그인", type="primary", use_container_width=True):
+                user = st.session_state.user_db.get(in_id)
+                if user and user["password"] == in_pw:
                     st.session_state.current_user = in_id
                     st.session_state.auth_step = "setup_gate"
                     st.rerun()
                 else:
                     st.error("❌ 등록되지 않은 정보이거나 패스워드가 올바르지 않습니다.")
-            
-        with auth_inner_tab2:
-            st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
-            reg_id = st.text_input("신규아이디_필드", placeholder="등록할 신규 아이디", label_visibility="collapsed", key="field_id_reg")
-            st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
-            reg_pw = st.text_input("신규비밀번호_필드", type="password", placeholder="등록할 비밀번호", label_visibility="collapsed", key="field_pw_reg")
-            st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
-            reg_pw_c = st.text_input("신규확인_필드", type="password", placeholder="비밀번호 재입력 확인", label_visibility="collapsed", key="field_pwc_reg")
+                    
+        with tab2:
+            st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+            reg_id = st.text_input("신규아이디", placeholder="등록할 신규 아이디", key="field_id_reg")
+            reg_pw = st.text_input("신규비밀번호", type="password", placeholder="등록할 비밀번호", key="field_pw_reg")
+            reg_pw_c = st.text_input("신규확인", type="password", placeholder="비밀번호 재입력 확인", key="field_pwc_reg")
             
             st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
             if st.button("신청서 제출", use_container_width=True, key="action_register_submit"):
@@ -253,37 +194,50 @@ if st.session_state.auth_step == "login_gate":
                 elif reg_pw != reg_pw_c:
                     st.error("❌ 패스워드 확인 입력값이 일치하지 않습니다.")
                 else:
-                    st.session_state.user_db[reg_id] = reg_pw
-                    st.success("✅ 가입 신청이 수락되었습니다. 로그인해 주십시오.")
-
+                    # 변경된 user_db 구조(딕셔너리)에 맞추어 신규 유저 데이터 저장
+                    st.session_state.user_db[reg_id] = {
+                        "password": reg_pw, 
+                        "name": "신규등록자", 
+                        "sabun": "0000", 
+                        "team": "미배정"
+                    }
+                    st.success("✅ 가입 신청이 수락되었습니다. 탭을 이동하여 로그인해 주십시오.")
+                    
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ======================================================================
 # ⚙️ [STEP 2] 팀 설정 및 매칭된 기계 라우팅 제어 스크린
 # ======================================================================
 elif st.session_state.auth_step == "setup_gate":
-    st.markdown("<div class='setup-container'>", unsafe_allow_html=True)
-    st.markdown("<h3>🏭 스마트 공정 및 소속 설비 지정</h3>", unsafe_allow_html=True)
-    st.write(f"접속자 승인 계정: `{st.session_state.current_user}`")
-    st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
-    
-    selected_team = st.selectbox("📌 소속 작업 부서/팀 선택", ["생산기술1팀", "제조운영2팀", "설비보전팀", "품질관리과"])
-    
-    if df is not None:
-        machine_list = df[c_mach].unique()
-        selected_mach = st.selectbox("🏭 금일 할당 담당 설비 지정", machine_list)
-    else:
-        selected_mach = st.text_input("🏭 설비 수동 할당 기입 (네트워크 에러)")
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        st.markdown('<div class="styled-card">', unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align:center; color: white;'>🏭 스마트 공정 및 소속 설비 지정</h3>", unsafe_allow_html=True)
         
-    st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
-    
-    if st.button("맞춤형 정비 대시보드 진입 ➡️", type="primary", use_container_width=True):
-        st.session_state.user_team = selected_team
-        st.session_state.user_machine = selected_mach
-        st.session_state.auth_step = "main_app"
-        st.rerun()
+        # 현재 로그인한 유저의 정보 렌더링
+        current_user_info = st.session_state.user_db.get(st.session_state.current_user, {})
+        user_display_name = current_user_info.get("name", st.session_state.current_user)
         
-    st.markdown("</div>", unsafe_allow_html=True)
-
+        st.write(f"접속자 승인 계정: `{user_display_name} ({st.session_state.current_user})`")
+        st.markdown("<hr style='border-color: #555; margin: 15px 0;'>", unsafe_allow_html=True)
+        
+        selected_team = st.selectbox("📌 소속 작업 부서/팀 선택", ["생산기술1팀", "제조운영2팀", "설비보전팀", "품질관리과"])
+        
+        if df is not None:
+            machine_list = df[c_mach].unique()
+            selected_mach = st.selectbox("🏭 금일 할당 담당 설비 지정", machine_list)
+        else:
+            selected_mach = st.text_input("🏭 설비 수동 할당 기입 (네트워크 에러)")
+            
+        st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
+        
+        if st.button("맞춤형 정비 대시보드 진입 ➡️", type="primary", use_container_width=True):
+            st.session_state.user_team = selected_team
+            st.session_state.user_machine = selected_mach
+            st.session_state.auth_step = "main_app"
+            st.rerun()
+            
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ======================================================================
 # 📊 [STEP 3] 맞춤형 스마트 정비 프로 메인 관제 어플리케이션
@@ -626,4 +580,4 @@ elif st.session_state.auth_step == "main_app":
                             except Exception as chat_err:
                                 st.error(f"❌ 챗봇 엔진 작동 오류: {chat_err}")
 else:
-    st.info("구글 마스터 스프레드를 연결하는 중...")
+    st.info("구글 마스터 스프레드시트를 연결하는 중...")
