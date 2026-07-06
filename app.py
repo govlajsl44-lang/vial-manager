@@ -43,69 +43,99 @@ if "user_db" not in st.session_state:
     }
 
 # ======================================================================
-# 3. 🎨 [통합 CSS 및 로딩 인디게이터 디자인 엔진]
+# 3. 🎨 [통합 CSS 및 전역 로딩 인디게이터 엔진]
 # ======================================================================
+kgc_svg_loader = "data:image/svg+xml;charset=utf-8," + urllib.parse.quote("""
+<svg width='100' height='40' viewBox='0 0 100 40' xmlns='http://www.w3.org/2000/svg'>
+  <style>
+    .dot { transform-origin: center; animation: bounce 1.2s infinite ease-in-out; opacity: 0.2; }
+    .d1 { fill: #007BEC; animation-delay: 0s; }
+    .d2 { fill: #A3A3A3; animation-delay: 0.15s; }
+    .d3 { fill: #3DC340; animation-delay: 0.3s; }
+    .d4 { fill: #FF7C1A; animation-delay: 0.45s; }
+    @keyframes bounce { 0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1.2); } }
+  </style>
+  <rect x='10' y='14' width='12' height='12' rx='2' class='dot d1'/>
+  <rect x='35' y='14' width='12' height='12' rx='2' class='dot d2'/>
+  <rect x='60' y='14' width='12' height='12' rx='2' class='dot d3'/>
+  <rect x='85' y='14' width='12' height='12' rx='2' class='dot d4'/>
+</svg>
+""")
+
+global_loader_css = f"""
+    <style>
+    div[data-testid="stSpinner"] {{
+        position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
+        background-color: rgba(0, 0, 0, 0.65) !important; backdrop-filter: blur(3px);
+        z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important;
+    }}
+    div[data-testid="stSpinner"] > div > svg {{ display: none !important; }}
+    div[data-testid="stSpinner"] > div {{
+        color: white !important; font-size: 1.1rem !important; font-weight: bold !important;
+        display: flex !important; flex-direction: column !important; align-items: center !important; gap: 15px !important;
+    }}
+    div[data-testid="stSpinner"] > div::before {{
+        content: ""; display: block; width: 100px; height: 40px;
+        background-image: url("{kgc_svg_loader}");
+        background-repeat: no-repeat; background-position: center;
+    }}
+    div[data-testid="stStatusWidget"] {{
+        position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important;
+        width: 100vw !important; height: 100vh !important;
+        background-color: rgba(0,0,0,0.5) !important; backdrop-filter: blur(2px) !important;
+        display: flex !important; justify-content: center !important; align-items: center !important; z-index: 99998 !important;
+    }}
+    div[data-testid="stStatusWidget"] * {{ display: none !important; }}
+    div[data-testid="stStatusWidget"]::after {{
+        content: "🔄 시스템 처리 및 동기화 중...";
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        color: white; font-size: 1.1rem; font-weight: bold;
+        background-image: url("{kgc_svg_loader}"); background-repeat: no-repeat; background-position: top center; padding-top: 55px;
+    }}
+    </style>
+"""
+st.markdown(global_loader_css, unsafe_allow_html=True)
+
 if st.session_state.auth_step == "login_gate":
     login_css = f"""
         <style>
-        /* 상단 메뉴바 완전 삭제 */
         header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
         div[data-testid="stToolbar"] {{ visibility: hidden !important; }}
-        
-        /* 공통 배경 설정 */
         div[data-testid="stAppViewContainer"] {{
             background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-attachment: fixed !important;
+            background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
         }}
         .main {{ background: transparent !important; }}
-        
-        /* 검은 상자 디자인 (라운드 8px) */
         .styled-card {{
-            background-color: rgba(34, 34, 34, 0.96) !important;
-            border-radius: 8px !important;
-            padding: 30px !important;
-            color: #FFFFFF !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-            margin-top: 5vh;
-            margin-bottom: 5vh;
+            background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh;
         }}
-
-        /* ---------------- 로딩 인디게이터 (KGC 컬러 모티브) ---------------- */
-        .loading-overlay {{
+        .loading-overlay-intro {{
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: rgba(0, 0, 0, 0.6); 
-            display: flex; justify-content: center; align-items: center;
-            z-index: 9999; visibility: hidden; 
+            background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(3px);
+            display: flex; justify-content: center; align-items: center; z-index: 999999; visibility: hidden; flex-direction: column; gap: 15px; color: white; font-size: 1.1rem; font-weight: bold;
         }}
-        .loading-dots {{ display: flex; gap: 15px; }}
-        .dot {{ width: 15px; height: 15px; border-radius: 2px; animation: loading-fade 1.2s infinite ease-in-out; opacity: 0.2; }}
-        .dot1 {{ background-color: #007BEC; animation-delay: 0s; }}    /* 파란색 */
-        .dot2 {{ background-color: #A3A3A3; animation-delay: 0.15s; }} /* 회색 */
-        .dot3 {{ background-color: #3DC340; animation-delay: 0.3s; }}  /* 초록색 */
-        .dot4 {{ background-color: #FF7C1A; animation-delay: 0.45s; }} /* 주황색 */
-        
-        @keyframes loading-fade {{
-            0%, 80%, 100% {{ opacity: 0.2; transform: scale(0.9); }}
-            40% {{ opacity: 1; transform: scale(1); }}
-        }}
-        .loading-active {{ visibility: visible; }}
+        .loading-dots-intro {{ display: flex; gap: 15px; }}
+        .dot-intro {{ width: 12px; height: 12px; border-radius: 2px; animation: loading-fade 1.2s infinite ease-in-out; opacity: 0.2; }}
+        .dot-intro1 {{ background-color: #007BEC; animation-delay: 0s; }} 
+        .dot-intro2 {{ background-color: #A3A3A3; animation-delay: 0.15s; }} 
+        .dot-intro3 {{ background-color: #3DC340; animation-delay: 0.3s; }}  
+        .dot-intro4 {{ background-color: #FF7C1A; animation-delay: 0.45s; }} 
+        @keyframes loading-fade {{ 0%, 80%, 100% {{ opacity: 0.2; transform: scale(0.8); }} 40% {{ opacity: 1; transform: scale(1.2); }} }}
+        .loading-active-intro {{ visibility: visible; }}
         </style>
         
-        <div class="loading-overlay" id="loadingOverlay">
-            <div class="loading-dots">
-                <div class="dot dot1"></div><div class="dot dot2"></div><div class="dot dot3"></div><div class="dot dot4"></div>
+        <div class="loading-overlay-intro" id="loadingOverlayIntro">
+            <div class="loading-dots-intro">
+                <div class="dot-intro dot-intro1"></div><div class="dot-intro dot-intro2"></div><div class="dot-intro dot-intro3"></div><div class="dot-intro dot-intro4"></div>
             </div>
+            <div>🔄 스마트 앱 엔진 로드 중...</div>
         </div>
-        
         <script>
-            // 페이지 로드시 1.5초간 로딩 애니메이션 노출
             window.onload = function() {{
-                var overlay = document.getElementById("loadingOverlay");
+                var overlay = document.getElementById("loadingOverlayIntro");
                 if(overlay) {{
-                    overlay.classList.add("loading-active");
-                    setTimeout(function() {{ overlay.classList.remove("loading-active"); }}, 1500);
+                    overlay.classList.add("loading-active-intro");
+                    setTimeout(function() {{ overlay.classList.remove("loading-active-intro"); }}, 1200);
                 }}
             }};
         </script>
@@ -120,9 +150,7 @@ else:
             background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
         }}
         .styled-card {{
-            background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important;
-            padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-            margin-top: 5vh; margin-bottom: 5vh;
+            background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh;
         }}
         .block-container {{ padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }}
         h1 {{ color: #0F172A !important; font-weight: 800 !important; font-size: 1.8rem !important; border-bottom: 3px solid #007BEC; padding-bottom: 8px; margin-bottom: 15px !important; }}
@@ -222,42 +250,75 @@ if st.session_state.auth_step == "login_gate":
                 elif reg_pw != reg_pw_c:
                     st.error("❌ 패스워드 확인 입력값이 일치하지 않습니다.")
                 else:
-                    st.session_state.user_db[reg_id] = {
-                        "password": reg_pw, "name": "신규등록자", "sabun": "0000", "team": "미배정"
-                    }
+                    st.session_state.user_db[reg_id] = {"password": reg_pw, "name": "신규등록자", "sabun": "0000", "team": "미배정"}
                     st.success("✅ 가입 신청이 수락되었습니다. 탭을 이동하여 로그인해 주십시오.")
                     
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ======================================================================
-# ⚙️ [STEP 2] 팀 설정 및 매칭된 기계 라우팅 제어 스크린
+# ⚙️ [STEP 2] 단계별 공정 선택 및 기기(이미지) 라우팅 스크린
 # ======================================================================
 elif st.session_state.auth_step == "setup_gate":
-    col1, col2, col3 = st.columns([1, 1.5, 1])
+    col1, col2, col3 = st.columns([0.5, 3, 0.5])
+    
     with col2:
-        st.markdown('<div class="styled-card">', unsafe_allow_html=True)
-        st.markdown("<h3 style='text-align:center; color: white;'>🏭 스마트 공정 및 소속 설비 지정</h3>", unsafe_allow_html=True)
+        st.markdown('<div class="styled-card" style="padding: 40px !important;">', unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align:center; color: white; margin-bottom: 30px;'>🏭 스마트 공정 및 라인 라우팅 설정</h3>", unsafe_allow_html=True)
         
         current_user_info = st.session_state.user_db.get(st.session_state.current_user, {})
         user_display_name = current_user_info.get("name", st.session_state.current_user)
+        st.write(f"✅ **접속자 승인 계정:** `{user_display_name} ({st.session_state.current_user})`")
+        st.markdown("<hr style='border-color: #555; margin-bottom: 25px;'>", unsafe_allow_html=True)
         
-        st.write(f"접속자 승인 계정: `{user_display_name} ({st.session_state.current_user})`")
-        st.markdown("<hr style='border-color: #555; margin: 15px 0;'>", unsafe_allow_html=True)
-        
-        selected_team = st.selectbox("📌 소속 작업 부서/팀 선택", ["생산기술1팀", "제조운영2팀", "설비보전팀", "품질관리과"])
-        
-        if df is not None:
-            machine_list = df[c_mach].unique()
-            selected_mach = st.selectbox("🏭 금일 할당 담당 설비 지정", machine_list)
-        else:
-            selected_mach = st.text_input("🏭 설비 수동 할당 기입 (네트워크 에러)")
+        # [1단계 & 2단계] 가로 배치
+        step_col1, step_col2 = st.columns(2)
+        with step_col1:
+            factory = st.selectbox("1️⃣ 공장 선택", ["선택해주세요", "부여공장", "원주공장"])
             
-        st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
-        if st.button("맞춤형 정비 대시보드 진입 ➡️", type="primary", use_container_width=True):
-            st.session_state.user_team = selected_team
-            st.session_state.user_machine = selected_mach
-            st.session_state.auth_step = "main_app"
-            st.rerun()
+        with step_col2:
+            if factory == "부여공장":
+                dept = st.selectbox("2️⃣ 부서 선택", ["선택해주세요", "제품 1팀", "제품 2팀", "품질부", "시설에너지관리 팀", "홍삼부"])
+            else:
+                dept = "선택해주세요"
+                
+        # [3단계 & 4단계] 가로 배치
+        line = "선택해주세요"
+        prod = "선택해주세요"
+        if factory == "부여공장" and dept == "제품 1팀":
+            step_col3, step_col4 = st.columns(2)
+            with step_col3:
+                line = st.selectbox("3️⃣ 라인 선택", ["선택해주세요", "미니병", "액상", "고형제", "스틱"])
+            
+            with step_col4:
+                if line == "미니병":
+                    prod = st.selectbox("4️⃣ 세부 제품군 선택", ["선택해주세요", "활삼", "액상", "바이알"])
+                    
+            # [5단계] 마지막 기기 선택 (이미지 그리드)
+            if line == "미니병" and prod == "바이알":
+                st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+                st.markdown("<h4 style='color: #007BEC; text-align: center; margin-bottom: 20px; font-weight: 800;'>5️⃣ 대상 기기 선택 (아래 이미지를 클릭하세요)</h4>", unsafe_allow_html=True)
+                
+                # 기기 이미지 데이터 (URL 방식)
+                machines = [
+                    {"name": "병 정렬기", "img": "https://images.unsplash.com/photo-1589792923962-537704632910?w=400&q=80"},
+                    {"name": "세병기", "img": "https://images.unsplash.com/photo-1584916201218-f4242ceb4809?w=400&q=80"},
+                    {"name": "충전기", "img": "https://images.unsplash.com/photo-1615811361523-6bd03d7748e7?w=400&q=80"},
+                    {"name": "캡핑기", "img": "https://images.unsplash.com/photo-1563720224244-67d1655ce24c?w=400&q=80"},
+                    {"name": "살균기", "img": "https://images.unsplash.com/photo-1585435421671-0c16764628ce?w=400&q=80"},
+                    {"name": "레이블", "img": "https://images.unsplash.com/photo-1507560461415-99731cfa9ac8?w=400&q=80"},
+                    {"name": "수거로봇", "img": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&q=80"}
+                ]
+                
+                img_cols = st.columns(4, gap="medium")
+                for i, mach in enumerate(machines):
+                    with img_cols[i % 4]:
+                        st.image(mach["img"], use_container_width=True)
+                        if st.button(f"⚙️ {mach['name']}", key=f"btn_mach_{i}", use_container_width=True):
+                            st.session_state.user_team = f"{factory} {dept} {line} {prod}"
+                            st.session_state.user_machine = mach["name"]
+                            st.session_state.auth_step = "main_app"
+                            st.rerun()
+
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ======================================================================
@@ -299,10 +360,7 @@ elif st.session_state.auth_step == "main_app":
         st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
         
         menu_tab1, menu_tab2, menu_tab3, menu_tab4 = st.tabs([
-            "📋 1. 자산 관리 & 신품 교체", 
-            "📝 2. 정비 일지 기록", 
-            "📸 3. AI 카메라 진단",
-            "💬 4. AI 정비 챗봇"
+            "📋 1. 자산 관리 & 신품 교체", "📝 2. 정비 일지 기록", "📸 3. AI 카메라 진단", "💬 4. AI 정비 챗봇"
         ])
 
         with menu_tab1:
@@ -316,8 +374,7 @@ elif st.session_state.auth_step == "main_app":
             query_params = st.query_params
             session_mach = st.session_state.get("user_machine", df[c_mach].unique()[0])
             default_machine = query_params.get("machine", session_mach)
-            if default_machine not in df[c_mach].unique():
-                default_machine = df[c_mach].unique()[0]
+            if default_machine not in df[c_mach].unique(): default_machine = df[c_mach].unique()[0]
                 
             col1, col2 = st.columns([1, 1.2], gap="medium")
             
@@ -328,8 +385,7 @@ elif st.session_state.auth_step == "main_app":
                     filtered_df = df[df[c_mach] == selected_machine]
                     
                     default_part = query_params.get("part", filtered_df[c_name].unique()[0])
-                    if default_part not in filtered_df[c_name].unique():
-                        default_part = filtered_df[c_name].unique()[0]
+                    if default_part not in filtered_df[c_name].unique(): default_part = filtered_df[c_name].unique()[0]
                         
                     selected_part = st.selectbox("🔧 세부 점검 부품 선택", filtered_df[c_name].unique(), index=list(filtered_df[c_name].unique()).index(default_part), key="sl_part")
                 
@@ -341,10 +397,8 @@ elif st.session_state.auth_step == "main_app":
                     if pd.notna(part_info[c_install_date]):
                         raw_install_date = str(part_info[c_install_date]).strip()
                         st.markdown(f"📅 **최초 장착일 :** `{raw_install_date}`")
-                        try:
-                            parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
-                        except:
-                            parsed_start = datetime.date.today()
+                        try: parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
+                        except: parsed_start = datetime.date.today()
                     else:
                         st.markdown("📅 **최초 장착일 :** `기록 없음`")
                         parsed_start = datetime.date.today()
@@ -367,7 +421,7 @@ elif st.session_state.auth_step == "main_app":
                     new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info[c_curr_h]), step=10, key="adj_h")
                     new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
                     if st.button("💾 데이터 보정 명령 동기화", use_container_width=True):
-                        with st.spinner("보전 서버 통신 중..."):
+                        with st.spinner("보전 서버로 보정 값을 전송 중..."):
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, 6, new_curr_h) 
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_stock, new_stock) 
                             st.success("✅ 수치 수동 보정 완료")
@@ -450,10 +504,11 @@ elif st.session_state.auth_step == "main_app":
                         if not log_content:
                             st.warning("⚠️ 입력창에 누락된 데이터가 있습니다. 상세 내용을 기술해 주십시오.")
                         else:
-                            new_log_entry = {"날짜": log_date.strftime("%Y-%m-%d"), "부품명": log_part, "작업자": log_worker, "정비내용": log_content}
-                            st.session_state.temp_logs.insert(0, new_log_entry)
-                            st.success(f"✅ [{log_part}] 정비 데이터 이력이 타임라인에 안전하게 세팅되었습니다.")
-                            st.rerun()
+                            with st.spinner("작업 일지 데이터를 안전하게 저장 중..."):
+                                new_log_entry = {"날짜": log_date.strftime("%Y-%m-%d"), "부품명": log_part, "작업자": log_worker, "정비내용": log_content}
+                                st.session_state.temp_logs.insert(0, new_log_entry)
+                                st.success(f"✅ [{log_part}] 정비 데이터 이력이 타임라인에 안전하게 세팅되었습니다.")
+                                st.rerun()
             
             with log_col2:
                 st.markdown("<span class='section-title'>2️⃣ 최근 공정 예방 보전 이력 피드백 (실시간)</span>", unsafe_allow_html=True)
