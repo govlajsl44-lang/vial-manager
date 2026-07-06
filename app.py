@@ -15,7 +15,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 로컬 이미지 파일 인코딩 함수
 def get_base64_encoded_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
@@ -38,9 +37,7 @@ if "user_machine" not in st.session_state:
 if "temp_logs" not in st.session_state:
     st.session_state.temp_logs = []
 if "user_db" not in st.session_state:
-    st.session_state.user_db = {
-        "admin": {"password": "1234", "name": "관리자", "sabun": "9999", "team": "설비보전팀"}
-    }
+    st.session_state.user_db = {"admin": {"password": "1234", "name": "관리자", "sabun": "9999", "team": "설비보전팀"}}
 
 # ======================================================================
 # 3. 🎨 [통합 CSS 및 전역 로딩 인디게이터 엔진]
@@ -66,32 +63,14 @@ global_loader_css = f"""
     <style>
     div[data-testid="stSpinner"] {{
         position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
-        background-color: rgba(0, 0, 0, 0.65) !important; backdrop-filter: blur(3px);
-        z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important;
+        background-color: rgba(0, 0, 0, 0.65) !important; backdrop-filter: blur(3px); z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important;
     }}
     div[data-testid="stSpinner"] > div > svg {{ display: none !important; }}
-    div[data-testid="stSpinner"] > div {{
-        color: white !important; font-size: 1.1rem !important; font-weight: bold !important;
-        display: flex !important; flex-direction: column !important; align-items: center !important; gap: 15px !important;
-    }}
-    div[data-testid="stSpinner"] > div::before {{
-        content: ""; display: block; width: 100px; height: 40px;
-        background-image: url("{kgc_svg_loader}");
-        background-repeat: no-repeat; background-position: center;
-    }}
-    div[data-testid="stStatusWidget"] {{
-        position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important;
-        width: 100vw !important; height: 100vh !important;
-        background-color: rgba(0,0,0,0.5) !important; backdrop-filter: blur(2px) !important;
-        display: flex !important; justify-content: center !important; align-items: center !important; z-index: 99998 !important;
-    }}
+    div[data-testid="stSpinner"] > div {{ color: white !important; font-size: 1.1rem !important; font-weight: bold !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 15px !important; }}
+    div[data-testid="stSpinner"] > div::before {{ content: ""; display: block; width: 100px; height: 40px; background-image: url("{kgc_svg_loader}"); background-repeat: no-repeat; background-position: center; }}
+    div[data-testid="stStatusWidget"] {{ position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background-color: rgba(0,0,0,0.5) !important; backdrop-filter: blur(2px) !important; display: flex !important; justify-content: center !important; align-items: center !important; z-index: 99998 !important; }}
     div[data-testid="stStatusWidget"] * {{ display: none !important; }}
-    div[data-testid="stStatusWidget"]::after {{
-        content: "🔄 시스템 처리 및 동기화 중...";
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        color: white; font-size: 1.1rem; font-weight: bold;
-        background-image: url("{kgc_svg_loader}"); background-repeat: no-repeat; background-position: top center; padding-top: 55px;
-    }}
+    div[data-testid="stStatusWidget"]::after {{ content: "🔄 시스템 처리 및 데이터 로딩 중..."; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 1.1rem; font-weight: bold; background-image: url("{kgc_svg_loader}"); background-repeat: no-repeat; background-position: top center; padding-top: 55px; }}
     </style>
 """
 st.markdown(global_loader_css, unsafe_allow_html=True)
@@ -99,44 +78,26 @@ st.markdown(global_loader_css, unsafe_allow_html=True)
 if st.session_state.auth_step == "login_gate":
     login_css = f"""
         <style>
-        header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
-        div[data-testid="stToolbar"] {{ visibility: hidden !important; }}
-        div[data-testid="stAppViewContainer"] {{
-            background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important;
-            background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
-        }}
+        header[data-testid="stHeader"], div[data-testid="stToolbar"] {{ visibility: hidden !important; height: 0px !important; }}
+        div[data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important; background-size: cover !important; background-position: center !important; background-attachment: fixed !important; }}
         .main {{ background: transparent !important; }}
-        .styled-card {{
-            background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh;
-        }}
-        .loading-overlay-intro {{
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(3px);
-            display: flex; justify-content: center; align-items: center; z-index: 999999; visibility: hidden; flex-direction: column; gap: 15px; color: white; font-size: 1.1rem; font-weight: bold;
-        }}
+        .styled-card {{ background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh; }}
+        .loading-overlay-intro {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: center; z-index: 999999; visibility: hidden; flex-direction: column; gap: 15px; color: white; font-size: 1.1rem; font-weight: bold; }}
         .loading-dots-intro {{ display: flex; gap: 15px; }}
         .dot-intro {{ width: 12px; height: 12px; border-radius: 2px; animation: loading-fade 1.2s infinite ease-in-out; opacity: 0.2; }}
-        .dot-intro1 {{ background-color: #007BEC; animation-delay: 0s; }} 
-        .dot-intro2 {{ background-color: #A3A3A3; animation-delay: 0.15s; }} 
-        .dot-intro3 {{ background-color: #3DC340; animation-delay: 0.3s; }}  
-        .dot-intro4 {{ background-color: #FF7C1A; animation-delay: 0.45s; }} 
+        .dot-intro1 {{ background-color: #007BEC; animation-delay: 0s; }} .dot-intro2 {{ background-color: #A3A3A3; animation-delay: 0.15s; }} .dot-intro3 {{ background-color: #3DC340; animation-delay: 0.3s; }} .dot-intro4 {{ background-color: #FF7C1A; animation-delay: 0.45s; }} 
         @keyframes loading-fade {{ 0%, 80%, 100% {{ opacity: 0.2; transform: scale(0.8); }} 40% {{ opacity: 1; transform: scale(1.2); }} }}
         .loading-active-intro {{ visibility: visible; }}
         </style>
         
         <div class="loading-overlay-intro" id="loadingOverlayIntro">
-            <div class="loading-dots-intro">
-                <div class="dot-intro dot-intro1"></div><div class="dot-intro dot-intro2"></div><div class="dot-intro dot-intro3"></div><div class="dot-intro dot-intro4"></div>
-            </div>
+            <div class="loading-dots-intro"><div class="dot-intro dot-intro1"></div><div class="dot-intro dot-intro2"></div><div class="dot-intro dot-intro3"></div><div class="dot-intro dot-intro4"></div></div>
             <div>🔄 스마트 앱 엔진 로드 중...</div>
         </div>
         <script>
             window.onload = function() {{
                 var overlay = document.getElementById("loadingOverlayIntro");
-                if(overlay) {{
-                    overlay.classList.add("loading-active-intro");
-                    setTimeout(function() {{ overlay.classList.remove("loading-active-intro"); }}, 1200);
-                }}
+                if(overlay) {{ overlay.classList.add("loading-active-intro"); setTimeout(function() {{ overlay.classList.remove("loading-active-intro"); }}, 1200); }}
             }};
         </script>
     """
@@ -145,13 +106,8 @@ else:
     main_css = f"""
         <style>
         header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
-        div[data-testid="stAppViewContainer"] {{
-            background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important;
-            background-size: cover !important; background-position: center !important; background-attachment: fixed !important;
-        }}
-        .styled-card {{
-            background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh;
-        }}
+        div[data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important; background-size: cover !important; background-position: center !important; background-attachment: fixed !important; }}
+        .styled-card {{ background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh; }}
         .block-container {{ padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }}
         h1 {{ color: #0F172A !important; font-weight: 800 !important; font-size: 1.8rem !important; border-bottom: 3px solid #007BEC; padding-bottom: 8px; margin-bottom: 15px !important; }}
         div[data-testid="stMetric"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-top: 4px solid #007BEC !important; padding: 0.8rem !important; border-radius: 8px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05) !important; margin-bottom: 8px !important; }}
@@ -166,7 +122,6 @@ else:
 # 4. 데이터 로드 및 통신 모듈
 # ======================================================================
 SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8/export?format=csv&gid=0"
-
 if "MACRO_URL" in st.secrets:
     LIVE_MACRO_URL = st.secrets["MACRO_URL"]
     LIVE_SHEET_NAME = st.secrets.get("SHEET_NAME", "시트1")
@@ -180,8 +135,7 @@ def update_google_sheet(sheet_id, sheet_name, row_idx, col_idx, new_value):
         params = {"id": sheet_id, "sheet": sheet_name, "row": int(row_idx + 2), "col": int(col_idx + 1), "val": new_value}
         requests.get(LIVE_MACRO_URL, params=params, timeout=5)
         return True
-    except:
-        return False
+    except: return False
 
 @st.cache_data(ttl=5)
 def load_data(url):
@@ -189,8 +143,7 @@ def load_data(url):
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         return df
-    except Exception as e:
-        return None
+    except: return None
 
 df = load_data(SHEET_CSV_URL)
 
@@ -219,12 +172,10 @@ if st.session_state.auth_step == "login_gate":
         st.markdown("<p style='text-align:center; color:#AAAAAA; margin-bottom: 25px;'>KGC 인삼공사</p>", unsafe_allow_html=True)
         
         tab1, tab2 = st.tabs(["로그인", "회원가입"])
-        
         with tab1:
             st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
             in_id = st.text_input("아이디", placeholder="아이디를 입력하세요", key="l_id")
             in_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호를 입력하세요", key="l_pw")
-            
             st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
             if st.button("로그인", type="primary", use_container_width=True):
                 user = st.session_state.user_db.get(in_id)
@@ -232,27 +183,21 @@ if st.session_state.auth_step == "login_gate":
                     st.session_state.current_user = in_id
                     st.session_state.auth_step = "setup_gate"
                     st.rerun()
-                else:
-                    st.error("❌ 등록되지 않은 정보이거나 패스워드가 올바르지 않습니다.")
+                else: st.error("❌ 등록되지 않은 정보이거나 패스워드가 올바르지 않습니다.")
                     
         with tab2:
             st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
             reg_id = st.text_input("신규아이디", placeholder="등록할 신규 아이디", key="field_id_reg")
             reg_pw = st.text_input("신규비밀번호", type="password", placeholder="등록할 비밀번호", key="field_pw_reg")
             reg_pw_c = st.text_input("신규확인", type="password", placeholder="비밀번호 재입력 확인", key="field_pwc_reg")
-            
             st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
             if st.button("신청서 제출", use_container_width=True, key="action_register_submit"):
-                if not reg_id or not reg_pw:
-                    st.error("❌ 생성할 아이디 및 패스워드를 입력해 주세요.")
-                elif reg_id in st.session_state.user_db:
-                    st.error("❌ 이미 발급되었거나 사용 중인 아이디입니다.")
-                elif reg_pw != reg_pw_c:
-                    st.error("❌ 패스워드 확인 입력값이 일치하지 않습니다.")
+                if not reg_id or not reg_pw: st.error("❌ 생성할 아이디 및 패스워드를 입력해 주세요.")
+                elif reg_id in st.session_state.user_db: st.error("❌ 이미 발급되었거나 사용 중인 아이디입니다.")
+                elif reg_pw != reg_pw_c: st.error("❌ 패스워드 확인 입력값이 일치하지 않습니다.")
                 else:
                     st.session_state.user_db[reg_id] = {"password": reg_pw, "name": "신규등록자", "sabun": "0000", "team": "미배정"}
                     st.success("✅ 가입 신청이 수락되었습니다. 탭을 이동하여 로그인해 주십시오.")
-                    
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ======================================================================
@@ -260,7 +205,6 @@ if st.session_state.auth_step == "login_gate":
 # ======================================================================
 elif st.session_state.auth_step == "setup_gate":
     col1, col2, col3 = st.columns([0.5, 3, 0.5])
-    
     with col2:
         st.markdown('<div class="styled-card" style="padding: 40px !important;">', unsafe_allow_html=True)
         st.markdown("<h3 style='text-align:center; color: white; margin-bottom: 30px;'>🏭 스마트 공정 및 라인 라우팅 설정</h3>", unsafe_allow_html=True)
@@ -270,35 +214,24 @@ elif st.session_state.auth_step == "setup_gate":
         st.write(f"✅ **접속자 승인 계정:** `{user_display_name} ({st.session_state.current_user})`")
         st.markdown("<hr style='border-color: #555; margin-bottom: 25px;'>", unsafe_allow_html=True)
         
-        # [1단계 & 2단계] 가로 배치
         step_col1, step_col2 = st.columns(2)
-        with step_col1:
-            factory = st.selectbox("1️⃣ 공장 선택", ["선택해주세요", "부여공장", "원주공장"])
-            
+        with step_col1: factory = st.selectbox("1️⃣ 공장 선택", ["선택해주세요", "부여공장", "원주공장"])
         with step_col2:
-            if factory == "부여공장":
-                dept = st.selectbox("2️⃣ 부서 선택", ["선택해주세요", "제품 1팀", "제품 2팀", "품질부", "시설에너지관리 팀", "홍삼부"])
-            else:
-                dept = "선택해주세요"
+            if factory == "부여공장": dept = st.selectbox("2️⃣ 부서 선택", ["선택해주세요", "제품 1팀", "제품 2팀", "품질부", "시설에너지관리 팀", "홍삼부"])
+            else: dept = "선택해주세요"
                 
-        # [3단계 & 4단계] 가로 배치
         line = "선택해주세요"
         prod = "선택해주세요"
         if factory == "부여공장" and dept == "제품 1팀":
             step_col3, step_col4 = st.columns(2)
-            with step_col3:
-                line = st.selectbox("3️⃣ 라인 선택", ["선택해주세요", "미니병", "액상", "고형제", "스틱"])
-            
+            with step_col3: line = st.selectbox("3️⃣ 라인 선택", ["선택해주세요", "미니병", "액상", "고형제", "스틱"])
             with step_col4:
-                if line == "미니병":
-                    prod = st.selectbox("4️⃣ 세부 제품군 선택", ["선택해주세요", "활삼", "액상", "바이알"])
+                if line == "미니병": prod = st.selectbox("4️⃣ 세부 제품군 선택", ["선택해주세요", "활삼", "액상", "바이알"])
                     
-            # [5단계] 마지막 기기 선택 (이미지 그리드)
             if line == "미니병" and prod == "바이알":
                 st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
                 st.markdown("<h4 style='color: #007BEC; text-align: center; margin-bottom: 20px; font-weight: 800;'>5️⃣ 대상 기기 선택 (아래 이미지를 클릭하세요)</h4>", unsafe_allow_html=True)
                 
-                # 기기 이미지 데이터 (URL 방식)
                 machines = [
                     {"name": "병 정렬기", "img": "https://images.unsplash.com/photo-1589792923962-537704632910?w=400&q=80"},
                     {"name": "세병기", "img": "https://images.unsplash.com/photo-1584916201218-f4242ceb4809?w=400&q=80"},
@@ -318,311 +251,295 @@ elif st.session_state.auth_step == "setup_gate":
                             st.session_state.user_machine = mach["name"]
                             st.session_state.auth_step = "main_app"
                             st.rerun()
-
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ======================================================================
-# 📊 [STEP 3] 맞춤형 스마트 정비 프로 메인 관제 어플리케이션
+# 📊 [STEP 3] 기기 전용 맞춤형 스마트 관제 대시보드
 # ======================================================================
 elif st.session_state.auth_step == "main_app":
+    # ---------------------------------------------------------
+    # [데이터 필터링 및 더미 데이터 안전장치]
+    # ---------------------------------------------------------
+    selected_mach = st.session_state.user_machine
+    
+    # 1. 원본 시트에서 현재 선택된 기계(예: 충전기)의 부품만 추출
+    mach_df = df[df[c_mach] == selected_mach].copy() if df is not None else pd.DataFrame()
+    
+    # 2. 만약 시트에 해당 기계 부품이 아예 등록되어 있지 않다면, 오류 방지를 위해 임시 더미 데이터 생성
+    if mach_df.empty:
+        dummy_data = {
+            c_id: ['D001', 'D002', 'D003', 'D004'],
+            c_mach: [selected_mach] * 4,
+            c_name: ['베어링', 'O-ring', '노즐', '실린더'],
+            c_mat: ['합금강', '고무', '스테인리스', '알루미늄'],
+            c_life_m: [12, 6, 24, 36],
+            c_life_h: [8000, 4000, 15000, 20000],
+            c_curr_h: [7500, 3900, 5000, 19500],
+            c_manual: ['http://example.com'] * 4,
+            idx_stock: [1, 5, 2, 0],
+            c_install_date: ['2023-01-01', '2023-06-01', '2022-01-01', '2021-01-01'],
+            '남은시간': [500, 100, 10000, 500]
+        }
+        # 컬럼명을 원본 df 컬럼명 구조에 맞게 매핑
+        df_cols = list(df.columns) if df is not None and not df.empty else list(dummy_data.keys())
+        mach_df = pd.DataFrame(dummy_data)
+        mach_df.rename(columns={idx_stock: c_stock}, inplace=True)
+        st.info("💡 안내: 현재 구글 시트에 해당 기계의 데이터가 없어, 화면 시연을 위해 임시 부품 데이터(베어링, O-ring 등)를 띄웠습니다.")
+
+    # ---------------------------------------------------------
+    # [화면 상단 UI 랜더링]
+    # ---------------------------------------------------------
     nav_col1, nav_col2 = st.columns([8, 2])
-    with nav_col1:
-        st.caption(f"🔧 {st.session_state.user_team} 전용 | 할당 지정 라인: [{st.session_state.user_machine}] | 인증 책임 정비원: {st.session_state.current_user}")
+    with nav_col1: st.caption(f"🔧 소속: {st.session_state.user_team} | 인증 책임자: {st.session_state.current_user}")
     with nav_col2:
-        if st.button("🔒 안전 로그아웃", use_container_width=True):
-            st.session_state.auth_step = "login_gate"
-            st.session_state.current_user = None
-            st.session_state.user_machine = None
-            st.session_state.user_team = None
+        if st.button("🔒 라우팅 재설정 (뒤로가기)", use_container_width=True):
+            st.session_state.auth_step = "setup_gate"
             st.rerun()
 
-    st.title("설비 소모품 관리 시스템")
+    st.title(f"🖥️ [{selected_mach}] 실시간 관제 대시보드")
 
-    if "MACRO_URL" not in st.secrets:
-        st.error("⚠️ [설정 누락] Streamlit 웹 관리자화면 Secrets에 MACRO_URL을 등록하셔야 구글 시트 저장이 활성화됩니다.")
+    # [1] 접기 가능한 기계 명판
+    with st.expander(f"🏷️ 선택된 기계 명판: 바이알 {selected_mach} - (주)이수이엔지", expanded=False):
+        n_col1, n_col2 = st.columns(2)
+        n_col1.markdown(f"**관리번호:** `MGT-2026-{hash(selected_mach) % 1000:03d}`")
+        n_col1.markdown("**프로덕션 이어 (제조년도):** `2024년`")
+        n_col2.markdown(f"**모델명:** `ISU-V-{selected_mach[:2]}-X1`")
+        n_col2.markdown("**제조사:** `(주)이수이엔지`")
 
-    if df is not None:
-        urgent_parts = df[(df['남은시간'] <= 200) | (df[c_stock] <= 2)]
+    # [2] 실시간 공정 지표 (상단 4칸)
+    urgent_parts = mach_df[(mach_df['남은시간'] <= 200) | (mach_df[c_stock] <= 2)]
+    
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("현재 작동 상태", "🟢 정상 가동 (NORMAL)")
+    m2.metric("실시간 불량률", "0.02%")
+    m3.metric("위험 소모품", f"{len(urgent_parts)} 건", delta="-조치 요망", delta_color="inverse")
+    m4.metric("등록된 세부 부품", f"{len(mach_df)} 종")
+    
+    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+    
+    # ---------------------------------------------------------
+    # [메뉴 탭 구성]
+    # ---------------------------------------------------------
+    menu_tab1, menu_tab2, menu_tab3, menu_tab4 = st.tabs([
+        "📋 1. 부품 상태 및 신품 교체", "📝 2. 정비 일지 기록", "📸 3. AI 카메라 진단", "💬 4. AI 정비 챗봇"
+    ])
+
+    with menu_tab1:
+        st.markdown(f"""
+            <div class='menu-hero-banner'>
+                <h3>📋 [{selected_mach}] 세부 부품 자산 관제 및 신품 교체</h3>
+                <p>기계 내부 핵심 소모품의 잔여 수명과 재고를 파악하고, 교체 시 데이터를 리셋합니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        if not urgent_parts.empty:
-            with st.expander(f"🚨 위험물품 알림: 정비 임계 품목 {len(urgent_parts)}건 검출", expanded=True):
-                alert_display = urgent_parts[[c_mach, c_name, '남은시간', c_stock]].copy()
-                alert_display.columns = ['설비명', '부품명', '잔여(Hr)', '재고(EA)']
-                st.dataframe(alert_display, use_container_width=True, hide_index=True)
-
-        st.markdown("### 📊 실시간 공정 지표")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("총 관리 소모품 종류", f"{len(df)} 종류")
-        m2.metric("보안재고 위험군 (2개 이하)", f"{len(df[df[c_stock] <= 2])} 종")
-        m3.metric("라인 가동 상태", "NORMAL (안정 구동)")
-        m4.metric("시스템 동기화 기준", datetime.date.today().strftime("%Y-%m-%d"))
+        col1, col2 = st.columns([1, 1.2], gap="medium")
         
-        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-        
-        menu_tab1, menu_tab2, menu_tab3, menu_tab4 = st.tabs([
-            "📋 1. 자산 관리 & 신품 교체", "📝 2. 정비 일지 기록", "📸 3. AI 카메라 진단", "💬 4. AI 정비 챗봇"
-        ])
-
-        with menu_tab1:
-            st.markdown(f"""
-                <div class='menu-hero-banner'>
-                    <h3>📋 소모품 자산 관제 및 신품 교체실 (매칭 타겟 설비: {st.session_state.user_machine})</h3>
-                    <p>설비별 부품의 남은 수명을 실시간으로 모니터링하고, 신품 교체 시 마스터 데이터를 동기화하는 공간입니다.</p>
-                </div>
-            """, unsafe_allow_html=True)
+        with col1:
+            st.markdown("<span class='section-title'>1️⃣ 세부 부품 선택</span>", unsafe_allow_html=True)
+            with st.container():
+                # 기계 선택 없이 바로 해당 기계의 부품 리스트만 보여줌
+                part_list = mach_df[c_name].unique()
+                selected_part = st.selectbox("🔧 부품명 (베어링, O-ring, 노즐 등)", part_list, key="sl_part_only")
             
-            query_params = st.query_params
-            session_mach = st.session_state.get("user_machine", df[c_mach].unique()[0])
-            default_machine = query_params.get("machine", session_mach)
-            if default_machine not in df[c_mach].unique(): default_machine = df[c_mach].unique()[0]
-                
-            col1, col2 = st.columns([1, 1.2], gap="medium")
+            # 선택된 부품의 상세 데이터 추출
+            part_info = mach_df[mach_df[c_name] == selected_part].iloc[0]
+            # 원본 df에 있는 실제 index 찾기 (더미데이터인 경우 -1)
+            real_indices = df[df[c_name] == selected_part].index if df is not None else []
+            part_idx = real_indices[0] if len(real_indices) > 0 else -1
             
-            with col1:
-                st.markdown("<span class='section-title'>1️⃣ 설비 및 부품 선택</span>", unsafe_allow_html=True)
-                with st.container():
-                    selected_machine = st.selectbox("🏭 대상 설비 라인 선택", df[c_mach].unique(), index=list(df[c_mach].unique()).index(default_machine), key="sl_mach")
-                    filtered_df = df[df[c_mach] == selected_machine]
-                    
-                    default_part = query_params.get("part", filtered_df[c_name].unique()[0])
-                    if default_part not in filtered_df[c_name].unique(): default_part = filtered_df[c_name].unique()[0]
-                        
-                    selected_part = st.selectbox("🔧 세부 점검 부품 선택", filtered_df[c_name].unique(), index=list(filtered_df[c_name].unique()).index(default_part), key="sl_part")
-                
-                part_idx = df[df[c_name] == selected_part].index[0]
-                part_info = df.loc[part_idx]
-                
-                st.markdown("<span class='section-title'>2️⃣ 선택 부품 실시간 상태 조회</span>", unsafe_allow_html=True)
-                with st.container():
-                    if pd.notna(part_info[c_install_date]):
-                        raw_install_date = str(part_info[c_install_date]).strip()
-                        st.markdown(f"📅 **최초 장착일 :** `{raw_install_date}`")
-                        try: parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
-                        except: parsed_start = datetime.date.today()
-                    else:
-                        st.markdown("📅 **최초 장착일 :** `기록 없음`")
-                        parsed_start = datetime.date.today()
+            st.markdown("<span class='section-title'>2️⃣ 선택 부품 실시간 상태 조회</span>", unsafe_allow_html=True)
+            with st.container():
+                if pd.notna(part_info.get(c_install_date, None)):
+                    raw_install_date = str(part_info[c_install_date]).strip()
+                    st.markdown(f"📅 **최초 장착일 :** `{raw_install_date}`")
+                    try: parsed_start = datetime.datetime.strptime(raw_install_date, "%Y-%m-%d").date()
+                    except: parsed_start = datetime.date.today()
+                else:
+                    st.markdown("📅 **최초 장착일 :** `기록 없음`")
+                    parsed_start = datetime.date.today()
 
-                    months_to_add = int(part_info[c_life_m])
-                    year = parsed_start.year + (parsed_start.month + months_to_add - 1) // 12
-                    month = (parsed_start.month + months_to_add - 1) % 12 + 1
-                    calculated_replace_date = datetime.date(year, month, min(parsed_start.day, 28))
-                    
-                    st.markdown(f"⏳ **차기 권장 교체일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}` (주기: {months_to_add}개월)")
-                    st.markdown(f"📦 **창고 보관 여분 재고 :** `{part_info[c_stock]} EA`")
-                    st.markdown(f"⏱️ **가동 런타임 :** `{part_info[c_curr_h]} hr` / 한계 `{part_info[c_life_h]} hr` (잔여: `{part_info['남은시간']} hr`)")
-                    
-                    manual_url = part_info[c_manual]
-                    if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
-                        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                        st.link_button("📄 표준 정비 매뉴얼 열람", manual_url.strip(), type="primary", use_container_width=True)
+                months_to_add = int(part_info.get(c_life_m, 0))
+                year = parsed_start.year + (parsed_start.month + months_to_add - 1) // 12
+                month = (parsed_start.month + months_to_add - 1) % 12 + 1
+                calculated_replace_date = datetime.date(year, month, min(parsed_start.day, 28))
+                
+                st.markdown(f"⏳ **차기 권장 교체일 :** `{calculated_replace_date.strftime('%Y-%m-%d')}`")
+                st.markdown(f"📦 **보유 재고 :** `{part_info.get(c_stock, 0)} EA`")
+                st.markdown(f"⏱️ **가동 런타임 :** `{part_info.get(c_curr_h, 0)} hr` (한계 `{part_info.get(c_life_h, 0)} hr`)")
+                
+                manual_url = part_info.get(c_manual, "")
+                if pd.notna(manual_url) and str(manual_url).strip().startswith("http"):
+                    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+                    st.link_button("📄 표준 정비 매뉴얼 열람", manual_url.strip(), type="primary", use_container_width=True)
 
-                with st.expander("⚙️ 예외 변수 수동 수치 보정"):
-                    new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info[c_curr_h]), step=10, key="adj_h")
-                    new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info[c_stock]), step=1, key="adj_s")
-                    if st.button("💾 데이터 보정 명령 동기화", use_container_width=True):
+            with st.expander("⚙️ 예외 변수 수동 수치 보정"):
+                new_curr_h = st.number_input("현재 누적 가동 시간 보정", value=int(part_info.get(c_curr_h, 0)), step=10, key="adj_h")
+                new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info.get(c_stock, 0)), step=1, key="adj_s")
+                if st.button("💾 수치 수동 보정 저장", use_container_width=True):
+                    if part_idx != -1:
                         with st.spinner("보전 서버로 보정 값을 전송 중..."):
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, 6, new_curr_h) 
                             update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_stock, new_stock) 
-                            st.success("✅ 수치 수동 보정 완료")
+                            st.success("✅ 수치 수정 완료")
                             st.cache_data.clear()
                             st.rerun()
-                            
-            with col2:
-                st.markdown("<span class='section-title'>3️⃣ 소모품 교체 및 자산 리셋</span>", unsafe_allow_html=True)
-                with st.container():
-                    st.warning(f"⚠️ **작업 확정 알림:** [{selected_part}] 파트를 새 부품으로 교체하는 경우, 아래 단추를 누르면 **[운전시간 0Hr 리셋 / 여분재고 1개 차감 / 장착일 오늘 자동 갱신]**이 구글 시트에 반영됩니다.")
-                    chosen_execution_date = st.date_input("📆 실제 신품 교체(장착) 날짜 지정", datetime.date.today(), key="exec_date_picker")
-                    
-                    if st.button("교체 확정 처리 완료", type="primary", use_container_width=True):
-                        if part_info[c_stock] <= 0:
-                            st.error("❌ 창고 내 여분 재고 자산이 부족하여 교체 명령을 수행할 수 없습니다.")
-                        else:
-                            with st.spinner("중앙 ERP 스프레드시트 클라우드 원격 갱신 중..."):
-                                reset_hours = 0
-                                reduced_stock = int(part_info[c_stock]) - 1
-                                formatted_install_date = chosen_execution_date.strftime("%Y-%m-%d")
-                                
-                                update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, 6, reset_hours)       
-                                update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_stock, reduced_stock) 
-                                update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_install, formatted_install_date) 
-                                
-                                auto_system_log = {
-                                    "날짜": formatted_install_date, "부품명": selected_part, "작업자": st.session_state.current_user,
-                                    "정비내용": f"[신품 교체 완수] {st.session_state.user_team} 담당 정비 조치 완료."
-                                }
-                                st.session_state.temp_logs.insert(0, auto_system_log)
-                                st.success(f"🎉 [{selected_part}] 신품 장착 처리 및 스케줄링 리셋이 완벽하게 완수되었습니다.")
-                                st.balloons()
-                                st.cache_data.clear()
-                                st.rerun()
-
-                st.markdown("##### ⏱ ... 실시간 수명 소모 진행 바")
-                current_hours = int(part_info[c_curr_h])
-                max_hours = int(part_info[c_life_h])
-                progress_per = max(0, min(100, int((current_hours / max_hours) * 100))) if max_hours > 0 else 0
-                st.progress(progress_per, text=f"수명 소모 진척도: {progress_per}%")
-
-                st.markdown("---")
-                st.subheader("📱 하드웨어 식별용 스마트 QR코드 라벨")
-                app_url = "https://vial-manager-na6qyzsytdcsencg2jwr89.streamlit.app/"
-                qr_link = f"{app_url}?machine={urllib.parse.quote(selected_machine)}&part={urllib.parse.quote(selected_part)}"
-                qr_link_enc = urllib.parse.quote(qr_link)
-                qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=130x130&data={qr_link_enc}"
-                
-                q_col1, q_col2 = st.columns([1, 2.5])
-                with q_col1: st.image(qr_api_url, caption="정비 태그 QR")
-                with q_col2: st.code(qr_link)
-
-        with menu_tab2:
-            st.markdown("""
-                <div class='menu-hero-banner'>
-                    <h3>📝 제조 설비 일일 정비·교체 일지 관리실</h3>
-                    <p>현장에서 수행한 일상 보전 내역, 고장 처리 및 유격 조정 조치 사항을 기록합니다.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            log_col1, log_col2 = st.columns([1, 1.2], gap="medium")
-            
-            with log_col1:
-                st.markdown("<span class='section-title'>1️⃣ 정비 내역 서식 작성</span>", unsafe_allow_html=True)
-                with st.container():
-                    log_date = st.date_input("정비 및 작업 실행 일자", datetime.date.today(), key="m_log_date")
-                    
-                    mach_log_options = list(df[c_mach].unique())
-                    default_log_mach_idx = mach_log_options.index(st.session_state.user_machine) if st.session_state.user_machine in mach_log_options else 0
-                    log_mach = st.selectbox("정비 대상 설비 선택", mach_log_options, index=default_log_mach_idx, key="m_log_mach")
-                    
-                    filtered_log_df = df[df[c_mach] == log_mach]
-                    log_part = st.selectbox("정비 처리 부품 선택", filtered_log_df[c_name].unique(), key="m_log_part")
-                    
-                    log_worker = st.text_input("작업 정비원 성명 기입", value=f"{st.session_state.user_team} {st.session_state.current_user}", key="m_log_worker")
-                    log_content = st.text_area("상세 정비 작업 내역 기술", placeholder="예: 구동 기어 유격 측정 후 중심 정렬 및 볼트 고정 록타이트 처리.", key="m_log_content")
-                    
-                    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                    if st.button("🚀 정비 이력 로그 중앙 서버 전송", type="primary", use_container_width=True, key="m_log_submit_btn"):
-                        if not log_content:
-                            st.warning("⚠️ 입력창에 누락된 데이터가 있습니다. 상세 내용을 기술해 주십시오.")
-                        else:
-                            with st.spinner("작업 일지 데이터를 안전하게 저장 중..."):
-                                new_log_entry = {"날짜": log_date.strftime("%Y-%m-%d"), "부품명": log_part, "작업자": log_worker, "정비내용": log_content}
-                                st.session_state.temp_logs.insert(0, new_log_entry)
-                                st.success(f"✅ [{log_part}] 정비 데이터 이력이 타임라인에 안전하게 세팅되었습니다.")
-                                st.rerun()
-            
-            with log_col2:
-                st.markdown("<span class='section-title'>2️⃣ 최근 공정 예방 보전 이력 피드백 (실시간)</span>", unsafe_allow_html=True)
-                with st.container():
-                    base_logs = [{"날짜": "2026-07-01", "부품명": "충전 피스톤 실링", "작업자": "시스템관리자", "정비내용": "스마트 예지정비 모니터링 제어실 연동 상태 정상 작동 중."}]
-                    display_logs = st.session_state.temp_logs + base_logs
-                    st.dataframe(pd.DataFrame(display_logs), use_container_width=True, hide_index=True)
-
-        with menu_tab3:
-            st.markdown("""
-                <div class='menu-hero-banner'>
-                    <h3>📸 AI 실시간 스마트 현장 비전 진단실</h3>
-                    <p>마모된 부품 사진을 찍어 올리시면 인공지능이 손상도를 진단합니다.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            vision_api_key = st.secrets.get("GEMINI_API_KEY", "")
-            if vision_api_key: st.success("🟢 클라우드 공용 AI 보안 엔진이 안전하게 연동되어 있습니다.")
-            else: st.error("⚠️ GEMINI_API_KEY를 Secrets에 등록해 주세요.")
-            
-            v_col1, v_col2 = st.columns([1, 1.2], gap="medium")
-            
-            with v_col1:
-                st.markdown("<span class='section-title'>1️⃣ 하드웨어 이미지 입력 소스</span>", unsafe_allow_html=True)
-                with st.container():
-                    input_mode = st.radio("사진 획득 방식을 고르세요", ["📱 모바일 카메라로 직접 촬영", "📁 갤러리/컴퓨터 파일 업로드"], key="vision_mode")
-                    
-                    captured_file = None
-                    if input_mode == "📱 모바일 카메라로 직접 촬영": captured_file = st.camera_input("부품 외관 비추기")
-                    else: captured_file = st.file_uploader("부품 사진 이미지 선택 (JPG, PNG)", type=["jpg", "jpeg", "png"], key="file_vision")
+                    else:
+                        st.warning("⚠️ 시연용 임시 데이터이므로 구글 시트에 저장되지 않습니다.")
                         
-                    if captured_file is not None:
-                        st.image(captured_file, caption="🛠️ AI 분석 대상 이미지", width=360)
-            
-            with v_col2:
-                st.markdown("<span class='section-title'>2️⃣ AI 비전 실시간 진단 및 정비 권고안</span>", unsafe_allow_html=True)
-                if captured_file is None:
-                    st.info("💡 안내: 사진을 촬영하시거나 파일을 등록하면 분석이 활성화됩니다.")
-                else:
-                    if st.button("🚀 이미지 비전 해독 및 진단 분석 시작", type="primary", use_container_width=True):
-                        with st.spinner("AI가 고해상도 픽셀 분석을 통해 사물을 해독하는 중..."):
-                            try:
-                                import google.generativeai as genai
-                                from PIL import Image
-                                genai.configure(api_key=vision_api_key)
-                                pil_image = Image.open(captured_file)
-                                context_prompt = (
-                                    "너는 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 인공지능 비전이야. "
-                                    "제시된 사진을 정밀 해독해서 1. 이 부품이 어떤 기계 부품이거나 도구/설비인지 이름을 유추해주고, "
-                                    "2. 현재 표면 마모, 균열, 오염, 혹은 손상 징후가 육안상 식별되는지 외관 상태를 정밀 진단해줘. "
-                                    "3. 마지막으로 현장 정비원이 조치해야 할 예방보전 조치안을 대기업 공장 보고서 스타일로 깔끔하고 신뢰감 있게 한국어로 나누어 설명해줘."
-                                )
-                                models_to_try = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-2.0-flash']
-                                ai_response, used_model = None, ""
-                                for model_name in models_to_try:
-                                    try:
-                                        vision_model = genai.GenerativeModel(model_name)
-                                        ai_response = vision_model.generate_content([context_prompt, pil_image])
-                                        used_model = model_name
-                                        break
-                                    except: continue
-                                
-                                if ai_response is not None:
-                                    st.success(f"사진 해독이 성공적으로 완료되었습니다! (적용 엔진: {used_model})")
-                                    st.write(ai_response.text)
-                                else: st.error("❌ 모든 구글 AI 모델이 거부 응답을 보냈습니다. 한도를 점검해 주세요.")
-                            except Exception as error_msg:
-                                st.error(f"❌ AI 분석 모듈 연동 중 오류가 발생했습니다: {error_msg}")
-
-        with menu_tab4:
-            st.markdown("""
-                <div class='menu-hero-banner'>
-                    <h3>💬 AI 정비 챗봇</h3>
-                    <p>설비 구동부 트러블슈팅, 기계공학 조치 지식 등 현장 애로사항에 대한 솔루션을 논의합니다.</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            chat_api_key = st.secrets.get("GEMINI_API_KEY", "")
-                
-            if "chat_history" not in st.session_state:
-                st.session_state.chat_history = [{"role": "assistant", "content": "안녕하세요! 정비봇입니다. 설비 구동부 트러블이나 규격 노하우 등 현장 애로사항을 말씀해 주시면 해결책을 찾아드리겠습니다!"}]
-                
-            st.markdown("<span class='section-title'>💬 1:1 대화 챗봇</span>", unsafe_allow_html=True)
+        with col2:
+            st.markdown("<span class='section-title'>3️⃣ 소모품 교체 및 자산 리셋</span>", unsafe_allow_html=True)
             with st.container():
-                for msg in st.session_state.chat_history:
-                    with st.chat_message(msg["role"]): st.write(msg["content"])
-                    
-            if user_prompt := st.chat_input("정비 문제 상황이나 기계 질문을 타이핑하세요"):
-                with st.chat_message("user"): st.write(user_prompt)
-                st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+                chosen_execution_date = st.date_input("📆 교체일 지정", datetime.date.today(), key="exec_date_picker")
                 
-                if not chat_api_key: st.error("❌ 대시보드 Secrets에 GEMINI_API_KEY가 세팅되어 있지 않습니다.")
-                else:
-                    with st.chat_message("assistant"):
-                        with st.spinner("정비 챗봇이 조치 방안을 도출하는 중..."):
-                            try:
-                                import google.generativeai as genai
-                                genai.configure(api_key=chat_api_key)
-                                system_instruction = "너는 제조 공장의 최고 숙련된 기계 정비 마스터이자 스마트 팩토리 수석 엔지니어 보전원이야. 해결책을 조항별로 나누어 한국어로 설명해줘. 불필요한 서론은 생략하고 현장에서 당장 조치할 수 있는 실천적인 행동 매뉴얼 위주로 작성해야 해."
-                                chat_models = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-2.0-flash']
-                                bot_reply = None
-                                for m_name in chat_models:
-                                    try:
-                                        c_model = genai.GenerativeModel(m_name)
-                                        bot_reply = c_model.generate_content([system_instruction, user_prompt])
-                                        break
-                                    except: continue
-                                        
-                                if bot_reply is not None:
-                                    st.write(bot_reply.text)
-                                    st.session_state.chat_history.append({"role": "assistant", "content": bot_reply.text})
-                                    st.rerun()
-                                else: st.error("❌ 구글 AI 통신망 연결이 일시적으로 거부되었습니다.")
-                            except Exception as chat_err:
-                                st.error(f"❌ 챗봇 엔진 작동 오류: {chat_err}")
-else:
-    st.info("구글 마스터 스프레드시트를 연결하는 중...")
+                if st.button("교체 확정 처리 완료", type="primary", use_container_width=True):
+                    if part_info.get(c_stock, 0) <= 0:
+                        st.error("❌ 보유 재고가 부족하여 교체 명령을 수행할 수 없습니다.")
+                    else:
+                        if part_idx != -1:
+                            with st.spinner("중앙 ERP 원격 갱신 중..."):
+                                update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, 6, 0)       
+                                update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_stock, int(part_info.get(c_stock, 1)) - 1) 
+                                update_google_sheet("1zPCLBPMSsPHmGpZ8KBtlWDMIjYhpoqIHJxwzZkMgqf8", LIVE_SHEET_NAME, part_idx, idx_install, chosen_execution_date.strftime("%Y-%m-%d")) 
+                        
+                        auto_system_log = {
+                            "날짜": chosen_execution_date.strftime("%Y-%m-%d"), 
+                            "부품명": selected_part, 
+                            "작업자": st.session_state.current_user,
+                            "정비내용": f"[{selected_mach}] 신품 교체 완료 및 사이클 리셋."
+                        }
+                        st.session_state.temp_logs.insert(0, auto_system_log)
+                        st.success(f"🎉 [{selected_part}] 신품 장착 및 스케줄링 리셋이 완료되었습니다.")
+                        st.balloons()
+                        st.cache_data.clear()
+                        st.rerun()
+
+            st.markdown("##### ⏱ ... 예상 수명 바")
+            current_hours = int(part_info.get(c_curr_h, 0))
+            max_hours = int(part_info.get(c_life_h, 1))
+            progress_per = max(0, min(100, int((current_hours / max_hours) * 100))) if max_hours > 0 else 0
+            st.progress(progress_per, text=f"수명 소모 진척도: {progress_per}%")
+
+    with menu_tab2:
+        st.markdown(f"""
+            <div class='menu-hero-banner'>
+                <h3>📝 [{selected_mach}] 전용 정비 일지 기록</h3>
+                <p>수행한 보전 내역, 고장 처리 및 유격 조정 조치 사항을 기록합니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        log_col1, log_col2 = st.columns([1, 1.2], gap="medium")
+        
+        with log_col1:
+            st.markdown("<span class='section-title'>1️⃣ 정비 내역 서식 작성</span>", unsafe_allow_html=True)
+            with st.container():
+                log_date = st.date_input("정비 및 작업 실행 일자", datetime.date.today(), key="m_log_date")
+                
+                # 기계 선택 박스 삭제됨, 부품만 선택
+                log_part = st.selectbox("정비 부품 선택", mach_df[c_name].unique(), key="m_log_part")
+                
+                # [자동 기입 로직] (공장/부서/팀/라인/이름)
+                current_user_name = st.session_state.user_db.get(st.session_state.current_user, {}).get("name", st.session_state.current_user)
+                auto_worker_info = f"{st.session_state.user_team} / {current_user_name}"
+                
+                log_worker = st.text_input("작업원 (자동기입)", value=auto_worker_info, disabled=True, key="m_log_worker")
+                
+                log_content = st.text_area("상세 정비 작업 내용", placeholder="예: 구동 기어 유격 측정 후 중심 정렬 및 볼트 고정 록타이트 처리.", key="m_log_content")
+                
+                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+                if st.button("🚀 정비 이력 제출", type="primary", use_container_width=True, key="m_log_submit_btn"):
+                    if not log_content:
+                        st.warning("⚠️ 상세 정비 내용을 입력해 주십시오.")
+                    else:
+                        with st.spinner("작업 일지 데이터를 안전하게 저장 중..."):
+                            new_log_entry = {"날짜": log_date.strftime("%Y-%m-%d"), "부품명": f"[{selected_mach}] {log_part}", "작업자": auto_worker_info, "정비내용": log_content}
+                            st.session_state.temp_logs.insert(0, new_log_entry)
+                            st.success(f"✅ 정비 이력이 타임라인에 세팅되었습니다.")
+                            st.rerun()
+        
+        with log_col2:
+            st.markdown("<span class='section-title'>2️⃣ 최근 정비 내역 이력</span>", unsafe_allow_html=True)
+            with st.container():
+                base_logs = [{"날짜": "2026-07-01", "부품명": f"[{selected_mach}] 센서부", "작업자": "시스템관리자", "정비내용": "스마트 예지정비 모니터링 제어실 연동 상태 확인."}]
+                display_logs = st.session_state.temp_logs + base_logs
+                st.dataframe(pd.DataFrame(display_logs), use_container_width=True, hide_index=True)
+
+    with menu_tab3:
+        st.markdown(f"""
+            <div class='menu-hero-banner'>
+                <h3>📸 AI 카메라 (비전 진단)</h3>
+                <p>[{selected_mach}] 부품의 사진을 올리시면 인공지능이 마모 및 손상도를 진단합니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        vision_api_key = st.secrets.get("GEMINI_API_KEY", "")
+        if vision_api_key: st.success("🟢 클라우드 공용 AI 보안 엔진 연동 완료.")
+        else: st.error("⚠️ GEMINI_API_KEY를 설정해주세요.")
+        
+        v_col1, v_col2 = st.columns([1, 1.2], gap="medium")
+        
+        with v_col1:
+            st.markdown("<span class='section-title'>1️⃣ 하드웨어 이미지 입력</span>", unsafe_allow_html=True)
+            with st.container():
+                input_mode = st.radio("사진 획득 방식", ["📱 카메라 촬영", "📁 파일 업로드"], key="vision_mode")
+                captured_file = st.camera_input("외관 비추기") if input_mode == "📱 카메라 촬영" else st.file_uploader("이미지 선택", type=["jpg", "png"], key="file_vision")
+                    
+                if captured_file is not None:
+                    st.image(captured_file, caption="🛠️ AI 분석 대상 이미지", width=360)
+        
+        with v_col2:
+            st.markdown("<span class='section-title'>2️⃣ AI 비전 실시간 진단 결과</span>", unsafe_allow_html=True)
+            if captured_file is None:
+                st.info("💡 안내: 사진을 등록하면 분석이 활성화됩니다.")
+            else:
+                if st.button("🚀 이미지 비전 해독 분석 시작", type="primary", use_container_width=True):
+                    with st.spinner("AI 픽셀 분석 중..."):
+                        try:
+                            import google.generativeai as genai
+                            from PIL import Image
+                            genai.configure(api_key=vision_api_key)
+                            pil_image = Image.open(captured_file)
+                            context_prompt = f"너는 제조 공장의 기계 정비 마스터야. 이 사진은 '{selected_mach}'의 부품일 가능성이 높아. 마모, 균열 등을 정밀 진단하고 예방 조치안을 한국어로 보고서 형태로 써줘."
+                            vision_model = genai.GenerativeModel('gemini-2.5-flash')
+                            ai_response = vision_model.generate_content([context_prompt, pil_image])
+                            st.success("사진 해독이 성공적으로 완료되었습니다!")
+                            st.write(ai_response.text)
+                        except Exception as error_msg:
+                            st.error(f"❌ AI 분석 모듈 오류: {error_msg}")
+
+    with menu_tab4:
+        st.markdown(f"""
+            <div class='menu-hero-banner'>
+                <h3>💬 AI 챗봇</h3>
+                <p>[{selected_mach}] 구동부 트러블슈팅 및 기계공학 솔루션을 논의합니다.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        chat_api_key = st.secrets.get("GEMINI_API_KEY", "")
+            
+        if "chat_history" not in st.session_state:
+            st.session_state.chat_history = [{"role": "assistant", "content": f"안녕하세요! [{selected_mach}] 전담 정비봇입니다. 애로사항을 말씀해 주세요!"}]
+            
+        st.markdown("<span class='section-title'>💬 1:1 대화 챗봇</span>", unsafe_allow_html=True)
+        with st.container():
+            for msg in st.session_state.chat_history:
+                with st.chat_message(msg["role"]): st.write(msg["content"])
+                
+        if user_prompt := st.chat_input(f"{selected_mach}의 문제 상황을 타이핑하세요"):
+            with st.chat_message("user"): st.write(user_prompt)
+            st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+            
+            if not chat_api_key: st.error("❌ GEMINI_API_KEY 누락.")
+            else:
+                with st.chat_message("assistant"):
+                    with st.spinner("해결 방안 도출 중..."):
+                        try:
+                            import google.generativeai as genai
+                            genai.configure(api_key=chat_api_key)
+                            system_instruction = f"너는 {selected_mach} 설비 전문 수석 엔지니어 보전원이야. 해결책을 조항별로 실천적으로 한국어로 설명해."
+                            c_model = genai.GenerativeModel('gemini-2.5-flash')
+                            bot_reply = c_model.generate_content([system_instruction, user_prompt])
+                            st.write(bot_reply.text)
+                            st.session_state.chat_history.append({"role": "assistant", "content": bot_reply.text})
+                            st.rerun()
+                        except Exception as chat_err:
+                            st.error(f"❌ 챗봇 엔진 오류: {chat_err}")
