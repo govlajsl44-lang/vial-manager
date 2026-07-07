@@ -22,6 +22,8 @@ def get_base64_encoded_image(image_path):
     return "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1600"
 
 encoded_bg = get_base64_encoded_image("정관장 이미지.jpg")
+# 사용자 지정 KGC 로고 (같은 폴더에 kgc_logo.png 파일이 있어야 합니다)
+encoded_logo = get_base64_encoded_image("kgc_logo.png")
 
 # ======================================================================
 # 2. 🔐 인증 관련 세션 상태 초기화
@@ -40,37 +42,37 @@ if "user_db" not in st.session_state:
     st.session_state.user_db = {"admin": {"password": "1234", "name": "관리자", "sabun": "9999", "team": "설비보전팀"}}
 
 # ======================================================================
-# 3. 🎨 [통합 CSS 및 전역 로딩 인디게이터 엔진]
+# 3. 🎨 [통합 CSS 및 전역 KGC 로고 로딩 인디게이터 엔진]
 # ======================================================================
-kgc_svg_loader = "data:image/svg+xml;charset=utf-8," + urllib.parse.quote("""
-<svg width='100' height='40' viewBox='0 0 100 40' xmlns='http://www.w3.org/2000/svg'>
-  <style>
-    .dot { transform-origin: center; animation: bounce 1.2s infinite ease-in-out; opacity: 0.2; }
-    .d1 { fill: #007BEC; animation-delay: 0s; }
-    .d2 { fill: #A3A3A3; animation-delay: 0.15s; }
-    .d3 { fill: #3DC340; animation-delay: 0.3s; }
-    .d4 { fill: #FF7C1A; animation-delay: 0.45s; }
-    @keyframes bounce { 0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1.2); } }
-  </style>
-  <rect x='10' y='14' width='12' height='12' rx='2' class='dot d1'/>
-  <rect x='35' y='14' width='12' height='12' rx='2' class='dot d2'/>
-  <rect x='60' y='14' width='12' height='12' rx='2' class='dot d3'/>
-  <rect x='85' y='14' width='12' height='12' rx='2' class='dot d4'/>
-</svg>
-""")
-
 global_loader_css = f"""
     <style>
+    /* 로고 펄스(숨쉬기) 애니메이션 정의 */
+    @keyframes pulse-logo {{
+        0% {{ transform: scale(0.95); opacity: 0.7; }}
+        50% {{ transform: scale(1.1); opacity: 1; }}
+        100% {{ transform: scale(0.95); opacity: 0.7; }}
+    }}
+    
     div[data-testid="stSpinner"] {{
         position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
         background-color: rgba(0, 0, 0, 0.65) !important; backdrop-filter: blur(3px); z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important;
     }}
     div[data-testid="stSpinner"] > div > svg {{ display: none !important; }}
-    div[data-testid="stSpinner"] > div {{ color: white !important; font-size: 1.1rem !important; font-weight: bold !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 15px !important; }}
-    div[data-testid="stSpinner"] > div::before {{ content: ""; display: block; width: 100px; height: 40px; background-image: url("{kgc_svg_loader}"); background-repeat: no-repeat; background-position: center; }}
+    div[data-testid="stSpinner"] > div {{ color: white !important; font-size: 1.1rem !important; font-weight: bold !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 20px !important; }}
+    div[data-testid="stSpinner"] > div::before {{ 
+        content: ""; display: block; width: 130px; height: 130px; 
+        background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center; background-size: contain; 
+        animation: pulse-logo 1.5s infinite ease-in-out; 
+    }}
+    
     div[data-testid="stStatusWidget"] {{ position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background-color: rgba(0,0,0,0.5) !important; backdrop-filter: blur(2px) !important; display: flex !important; justify-content: center !important; align-items: center !important; z-index: 99998 !important; }}
     div[data-testid="stStatusWidget"] * {{ display: none !important; }}
-    div[data-testid="stStatusWidget"]::after {{ content: "🔄 시스템 처리 및 데이터 로딩 중..."; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 1.1rem; font-weight: bold; background-image: url("{kgc_svg_loader}"); background-repeat: no-repeat; background-position: top center; padding-top: 55px; }}
+    div[data-testid="stStatusWidget"]::after {{ 
+        content: "🔄 시스템 처리 및 데이터 로딩 중..."; 
+        display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 1.1rem; font-weight: bold; 
+        background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: top center; background-size: 110px; padding-top: 130px; 
+        animation: pulse-logo 1.5s infinite ease-in-out;
+    }}
     </style>
 """
 st.markdown(global_loader_css, unsafe_allow_html=True)
@@ -82,16 +84,13 @@ if st.session_state.auth_step == "login_gate":
         div[data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important; background-size: cover !important; background-position: center !important; background-attachment: fixed !important; }}
         .main {{ background: transparent !important; }}
         .styled-card {{ background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh; }}
-        .loading-overlay-intro {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: center; z-index: 999999; visibility: hidden; flex-direction: column; gap: 15px; color: white; font-size: 1.1rem; font-weight: bold; }}
-        .loading-dots-intro {{ display: flex; gap: 15px; }}
-        .dot-intro {{ width: 12px; height: 12px; border-radius: 2px; animation: loading-fade 1.2s infinite ease-in-out; opacity: 0.2; }}
-        .dot-intro1 {{ background-color: #007BEC; animation-delay: 0s; }} .dot-intro2 {{ background-color: #A3A3A3; animation-delay: 0.15s; }} .dot-intro3 {{ background-color: #3DC340; animation-delay: 0.3s; }} .dot-intro4 {{ background-color: #FF7C1A; animation-delay: 0.45s; }} 
-        @keyframes loading-fade {{ 0%, 80%, 100% {{ opacity: 0.2; transform: scale(0.8); }} 40% {{ opacity: 1; transform: scale(1.2); }} }}
+        .loading-overlay-intro {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: center; z-index: 999999; visibility: hidden; flex-direction: column; gap: 20px; color: white; font-size: 1.1rem; font-weight: bold; }}
+        .loading-logo-intro {{ width: 140px; animation: pulse-logo 1.5s infinite ease-in-out; }}
         .loading-active-intro {{ visibility: visible; }}
         </style>
         
         <div class="loading-overlay-intro" id="loadingOverlayIntro">
-            <div class="loading-dots-intro"><div class="dot-intro dot-intro1"></div><div class="dot-intro dot-intro2"></div><div class="dot-intro dot-intro3"></div><div class="dot-intro dot-intro4"></div></div>
+            <img src="{encoded_logo}" class="loading-logo-intro" alt="KGC Logo" />
             <div>🔄 스마트 앱 엔진 로드 중...</div>
         </div>
         <script>
@@ -262,10 +261,8 @@ elif st.session_state.auth_step == "main_app":
     # ---------------------------------------------------------
     selected_mach = st.session_state.user_machine
     
-    # 1. 원본 시트에서 현재 선택된 기계(예: 충전기)의 부품만 추출
     mach_df = df[df[c_mach] == selected_mach].copy() if df is not None else pd.DataFrame()
     
-    # 2. 만약 시트에 해당 기계 부품이 아예 등록되어 있지 않다면, 오류 방지를 위해 임시 더미 데이터 생성
     if mach_df.empty:
         dummy_data = {
             c_id: ['D001', 'D002', 'D003', 'D004'],
@@ -280,7 +277,6 @@ elif st.session_state.auth_step == "main_app":
             c_install_date: ['2023-01-01', '2023-06-01', '2022-01-01', '2021-01-01'],
             '남은시간': [500, 100, 10000, 500]
         }
-        # 컬럼명을 원본 df 컬럼명 구조에 맞게 매핑
         df_cols = list(df.columns) if df is not None and not df.empty else list(dummy_data.keys())
         mach_df = pd.DataFrame(dummy_data)
         mach_df.rename(columns={idx_stock: c_stock}, inplace=True)
@@ -298,7 +294,6 @@ elif st.session_state.auth_step == "main_app":
 
     st.title(f"🖥️ [{selected_mach}] 실시간 관제 대시보드")
 
-    # [1] 접기 가능한 기계 명판
     with st.expander(f"🏷️ 선택된 기계 명판: 바이알 {selected_mach} - (주)이수이엔지", expanded=False):
         n_col1, n_col2 = st.columns(2)
         n_col1.markdown(f"**관리번호:** `MGT-2026-{hash(selected_mach) % 1000:03d}`")
@@ -306,7 +301,6 @@ elif st.session_state.auth_step == "main_app":
         n_col2.markdown(f"**모델명:** `ISU-V-{selected_mach[:2]}-X1`")
         n_col2.markdown("**제조사:** `(주)이수이엔지`")
 
-    # [2] 실시간 공정 지표 (상단 4칸)
     urgent_parts = mach_df[(mach_df['남은시간'] <= 200) | (mach_df[c_stock] <= 2)]
     
     m1, m2, m3, m4 = st.columns(4)
@@ -337,13 +331,10 @@ elif st.session_state.auth_step == "main_app":
         with col1:
             st.markdown("<span class='section-title'>1️⃣ 세부 부품 선택</span>", unsafe_allow_html=True)
             with st.container():
-                # 기계 선택 없이 바로 해당 기계의 부품 리스트만 보여줌
                 part_list = mach_df[c_name].unique()
                 selected_part = st.selectbox("🔧 부품명 (베어링, O-ring, 노즐 등)", part_list, key="sl_part_only")
             
-            # 선택된 부품의 상세 데이터 추출
             part_info = mach_df[mach_df[c_name] == selected_part].iloc[0]
-            # 원본 df에 있는 실제 index 찾기 (더미데이터인 경우 -1)
             real_indices = df[df[c_name] == selected_part].index if df is not None else []
             part_idx = real_indices[0] if len(real_indices) > 0 else -1
             
@@ -418,6 +409,17 @@ elif st.session_state.auth_step == "main_app":
             max_hours = int(part_info.get(c_life_h, 1))
             progress_per = max(0, min(100, int((current_hours / max_hours) * 100))) if max_hours > 0 else 0
             st.progress(progress_per, text=f"수명 소모 진척도: {progress_per}%")
+            
+            st.markdown("---")
+            st.subheader("📱 하드웨어 식별용 스마트 QR코드 라벨")
+            app_url = "https://vial-manager-na6qyzsytdcsencg2jwr89.streamlit.app/"
+            qr_link = f"{app_url}?machine={urllib.parse.quote(selected_mach)}&part={urllib.parse.quote(selected_part)}"
+            qr_link_enc = urllib.parse.quote(qr_link)
+            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=130x130&data={qr_link_enc}"
+            
+            q_col1, q_col2 = st.columns([1, 2.5])
+            with q_col1: st.image(qr_api_url, caption="정비 태그 QR")
+            with q_col2: st.code(qr_link)
 
     with menu_tab2:
         st.markdown(f"""
@@ -434,10 +436,8 @@ elif st.session_state.auth_step == "main_app":
             with st.container():
                 log_date = st.date_input("정비 및 작업 실행 일자", datetime.date.today(), key="m_log_date")
                 
-                # 기계 선택 박스 삭제됨, 부품만 선택
                 log_part = st.selectbox("정비 부품 선택", mach_df[c_name].unique(), key="m_log_part")
                 
-                # [자동 기입 로직] (공장/부서/팀/라인/이름)
                 current_user_name = st.session_state.user_db.get(st.session_state.current_user, {}).get("name", st.session_state.current_user)
                 auto_worker_info = f"{st.session_state.user_team} / {current_user_name}"
                 
