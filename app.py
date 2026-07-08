@@ -45,51 +45,16 @@ if "user_db" not in st.session_state:
 # ======================================================================
 global_loader_css = f"""
     <style>
-    /* 1. 바깥쪽으로 퍼져나가는 파동(Ripple) 애니메이션 */
-    @keyframes corporate-ripple {{
-        0% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0.6); }}
-        70% {{ box-shadow: 0 0 0 30px rgba(0, 123, 236, 0); }}
-        100% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0); }}
-    }}
-    /* 2. 심장 박동처럼 미세하게 수축/이완하는 애니메이션 */
-    @keyframes corporate-beat {{
-        0% {{ transform: scale(0.95); }}
-        50% {{ transform: scale(1.02); }}
-        100% {{ transform: scale(0.95); }}
-    }}
-    
-    /* 버튼 클릭 시 발생하는 전역 스피너 오버레이 */
-    div[data-testid="stSpinner"] {{
-        position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
-        background-color: rgba(0, 0, 0, 0.7) !important; backdrop-filter: blur(4px); z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important;
-    }}
+    @keyframes corporate-ripple {{ 0% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0.6); }} 70% {{ box-shadow: 0 0 0 30px rgba(0, 123, 236, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0); }} }}
+    @keyframes corporate-beat {{ 0% {{ transform: scale(0.95); }} 50% {{ transform: scale(1.02); }} 100% {{ transform: scale(0.95); }} }}
+    div[data-testid="stSpinner"] {{ position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7) !important; backdrop-filter: blur(4px); z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; }}
     div[data-testid="stSpinner"] > div > svg {{ display: none !important; }}
     div[data-testid="stSpinner"] > div {{ color: white !important; font-size: 1.1rem !important; font-weight: bold !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 30px !important; }}
-    
-    /* 실제 로고가 담기는 원형 아이콘 컨테이너 */
-    div[data-testid="stSpinner"] > div::before {{ 
-        content: ""; display: block; width: 110px; height: 110px; 
-        background-color: #ffffff; border-radius: 50%;
-        background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center; background-size: 70%; 
-        animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite; 
-    }}
-    
-    /* 페이지 이동 시 발생하는 시스템 로딩 오버레이 */
+    div[data-testid="stSpinner"] > div::before {{ content: ""; display: block; width: 110px; height: 110px; background-color: #ffffff; border-radius: 50%; background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center; background-size: 70%; animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite; }}
     div[data-testid="stStatusWidget"] {{ position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background-color: rgba(0,0,0,0.7) !important; backdrop-filter: blur(4px) !important; display: flex !important; justify-content: center !important; align-items: center !important; z-index: 99998 !important; }}
     div[data-testid="stStatusWidget"] * {{ display: none !important; }}
-    div[data-testid="stStatusWidget"]::after {{ 
-        content: "🔄 시스템 처리 및 데이터 로딩 중..."; 
-        display: flex; flex-direction: column; align-items: center; justify-content: flex-end; color: white; font-size: 1.1rem; font-weight: bold; padding-bottom: 20px;
-        width: 110px; height: 160px; /* 로고와 텍스트 배치 간격 */
-        background-color: transparent;
-        background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center top; background-size: 77px; 
-    }}
-    /* StatusWidget의 로고 부분을 원형 아이콘으로 독립시키기 위한 꼼수 (가상요소 중첩) */
-    div[data-testid="stStatusWidget"]::before {{
-        content: ""; position: absolute; top: calc(50% - 60px); left: calc(50% - 55px);
-        width: 110px; height: 110px; background-color: #ffffff; border-radius: 50%; z-index: -1;
-        animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite;
-    }}
+    div[data-testid="stStatusWidget"]::after {{ content: "🔄 시스템 처리 및 데이터 로딩 중..."; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; color: white; font-size: 1.1rem; font-weight: bold; padding-bottom: 20px; width: 110px; height: 160px; background-color: transparent; background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center top; background-size: 77px; }}
+    div[data-testid="stStatusWidget"]::before {{ content: ""; position: absolute; top: calc(50% - 60px); left: calc(50% - 55px); width: 110px; height: 110px; background-color: #ffffff; border-radius: 50%; z-index: -1; animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite; }}
     </style>
 """
 st.markdown(global_loader_css, unsafe_allow_html=True)
@@ -101,28 +66,14 @@ if st.session_state.auth_step == "login_gate":
         div[data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important; background-size: cover !important; background-position: center !important; background-attachment: fixed !important; }}
         .main {{ background: transparent !important; }}
         .styled-card {{ background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh; }}
-        
         .loading-overlay-intro {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 999999; visibility: hidden; flex-direction: column; gap: 30px; color: white; font-size: 1.1rem; font-weight: bold; }}
-        .loading-logo-intro {{ 
-            width: 110px; height: 110px; background-color: white; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite; 
-        }}
+        .loading-logo-intro {{ width: 110px; height: 110px; background-color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite; }}
         .loading-logo-intro img {{ width: 70%; }}
         .loading-active-intro {{ visibility: visible; }}
         </style>
-        
-        <div class="loading-overlay-intro" id="loadingOverlayIntro">
-            <div class="loading-logo-intro">
-                <img src="{encoded_logo}" alt="KGC Logo" />
-            </div>
-            <div>🔄 스마트 앱 엔진 로드 중...</div>
-        </div>
+        <div class="loading-overlay-intro" id="loadingOverlayIntro"><div class="loading-logo-intro"><img src="{encoded_logo}" alt="KGC Logo" /></div><div>🔄 스마트 앱 엔진 로드 중...</div></div>
         <script>
-            window.onload = function() {{
-                var overlay = document.getElementById("loadingOverlayIntro");
-                if(overlay) {{ overlay.classList.add("loading-active-intro"); setTimeout(function() {{ overlay.classList.remove("loading-active-intro"); }}, 1200); }}
-            }};
+            window.onload = function() {{ var overlay = document.getElementById("loadingOverlayIntro"); if(overlay) {{ overlay.classList.add("loading-active-intro"); setTimeout(function() {{ overlay.classList.remove("loading-active-intro"); }}, 1200); }} }};
         </script>
     """
     st.markdown(login_css, unsafe_allow_html=True)
@@ -228,6 +179,22 @@ if st.session_state.auth_step == "login_gate":
 # ⚙️ [STEP 2] 단계별 공정 선택 및 기기(이미지) 라우팅 스크린
 # ======================================================================
 elif st.session_state.auth_step == "setup_gate":
+    
+    # 📌 공장 및 부서별 세부 기기 계층 데이터 (Dictionary)
+    factory_hierarchy = {
+        "부여공장": {
+            "제품 1팀": {
+                "미니병": ["바이알 충전기", "바이알 캡핑기", "바이알 살균기", "바이알 병 정렬기", "바이알 세병기", "바이알 레이블", "바이알 포장 로봇", "활삼 충전기", "활삼 살균기", "활삼 레이블", "활삼 단위 포장기", "활삼 세트 지함 포장기", "활삼 외포장기"],
+                "액상": ["액상 충전기", "액상 캡핑기", "액상 세병기", "액상 레이블", "액상 적재 로봇", "화장품 충전기"],
+                "스틱": ["스틱 1호 충전기", "스틱 2호 충전기", "레토르트 살균기", "스틱 단위 포장기"]
+            },
+            "제품 2팀": {}, "시설에너지 관리팀": {}, "지원팀": {}, "공정개선팀": {}, "산업안전보건팀": {}
+        },
+        "원주공장": {
+            "생산팀": {}, "시설에너지 관리팀": {}, "지원팀": {}, "산업안전보건팀": {}
+        }
+    }
+
     col1, col2, col3 = st.columns([0.5, 3, 0.5])
     with col2:
         st.markdown('<div class="styled-card" style="padding: 40px !important;">', unsafe_allow_html=True)
@@ -238,43 +205,65 @@ elif st.session_state.auth_step == "setup_gate":
         st.write(f"✅ **접속자 승인 계정:** `{user_display_name} ({st.session_state.current_user})`")
         st.markdown("<hr style='border-color: #555; margin-bottom: 25px;'>", unsafe_allow_html=True)
         
+        # [1단계 & 2단계] 가로 배치
         step_col1, step_col2 = st.columns(2)
-        with step_col1: factory = st.selectbox("1️⃣ 공장 선택", ["선택해주세요", "부여공장", "원주공장"])
+        with step_col1: 
+            factory_options = ["선택해주세요"] + list(factory_hierarchy.keys())
+            selected_factory = st.selectbox("1️⃣ 공장 선택", factory_options)
+            
         with step_col2:
-            if factory == "부여공장": dept = st.selectbox("2️⃣ 부서 선택", ["선택해주세요", "제품 1팀", "제품 2팀", "품질부", "시설에너지관리 팀", "홍삼부"])
-            else: dept = "선택해주세요"
+            if selected_factory != "선택해주세요": 
+                dept_options = ["선택해주세요"] + list(factory_hierarchy[selected_factory].keys())
+                selected_dept = st.selectbox("2️⃣ 부서 선택", dept_options)
+            else: 
+                selected_dept = "선택해주세요"
                 
-        line = "선택해주세요"
-        prod = "선택해주세요"
-        if factory == "부여공장" and dept == "제품 1팀":
-            step_col3, step_col4 = st.columns(2)
-            with step_col3: line = st.selectbox("3️⃣ 라인 선택", ["선택해주세요", "미니병", "액상", "고형제", "스틱"])
-            with step_col4:
-                if line == "미니병": prod = st.selectbox("4️⃣ 세부 제품군 선택", ["선택해주세요", "활삼", "액상", "바이알"])
+        # [3단계 & 4단계] 라인 선택 및 기기 화면 표시
+        if selected_dept != "선택해주세요":
+            line_dict = factory_hierarchy[selected_factory][selected_dept]
+            
+            if not line_dict:
+                st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+                st.info("🚧 해당 부서의 세부 생산 라인 및 기기 정보는 아직 시스템 등록 준비 중(미정)입니다.")
+            else:
+                step_col3, step_col4 = st.columns(2)
+                with step_col3: 
+                    line_options = ["선택해주세요"] + list(line_dict.keys())
+                    selected_line = st.selectbox("3️⃣ 생산 라인 선택", line_options)
+                
+                with step_col4:
+                    if selected_line != "선택해주세요":
+                        mach_count = len(line_dict[selected_line])
+                        st.write("") 
+                        st.success(f"✅ 총 {mach_count}대의 설비가 등록되어 있습니다.")
+
+                # 라인까지 선택 완료 시 기계 갤러리 렌더링 (이미지 대신 네모난 공란)
+                if selected_line != "선택해주세요":
+                    st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<h4 style='color: #007BEC; text-align: center; margin-bottom: 20px; font-weight: 800;'>4️⃣ 대상 기기 선택 ({selected_line})</h4>", unsafe_allow_html=True)
                     
-            if line == "미니병" and prod == "바이알":
-                st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
-                st.markdown("<h4 style='color: #007BEC; text-align: center; margin-bottom: 20px; font-weight: 800;'>5️⃣ 대상 기기 선택 (아래 이미지를 클릭하세요)</h4>", unsafe_allow_html=True)
-                
-                machines = [
-                    {"name": "병 정렬기", "img": "https://images.unsplash.com/photo-1589792923962-537704632910?w=400&q=80"},
-                    {"name": "세병기", "img": "https://images.unsplash.com/photo-1584916201218-f4242ceb4809?w=400&q=80"},
-                    {"name": "충전기", "img": "https://images.unsplash.com/photo-1615811361523-6bd03d7748e7?w=400&q=80"},
-                    {"name": "캡핑기", "img": "https://images.unsplash.com/photo-1563720224244-67d1655ce24c?w=400&q=80"},
-                    {"name": "살균기", "img": "https://images.unsplash.com/photo-1585435421671-0c16764628ce?w=400&q=80"},
-                    {"name": "레이블", "img": "https://images.unsplash.com/photo-1507560461415-99731cfa9ac8?w=400&q=80"},
-                    {"name": "수거로봇", "img": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&q=80"}
-                ]
-                
-                img_cols = st.columns(4, gap="medium")
-                for i, mach in enumerate(machines):
-                    with img_cols[i % 4]:
-                        st.image(mach["img"], use_container_width=True)
-                        if st.button(f"⚙️ {mach['name']}", key=f"btn_mach_{i}", use_container_width=True):
-                            st.session_state.user_team = f"{factory} {dept} {line} {prod}"
-                            st.session_state.user_machine = mach["name"]
-                            st.session_state.auth_step = "main_app"
-                            st.rerun()
+                    machine_list = line_dict[selected_line]
+                    
+                    # 4열(Columns) 갤러리 배치
+                    img_cols = st.columns(4, gap="medium")
+                    for i, mach_name in enumerate(machine_list):
+                        with img_cols[i % 4]:
+                            # 다크 테마에 어울리는 네모난 빈 칸(Placeholder) HTML 렌더링
+                            blank_box_html = """
+                            <div style="width: 100%; aspect-ratio: 16/9; background-color: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: center; align-items: center;">
+                                <span style="color: rgba(255,255,255,0.2); font-size: 0.8rem;">Image</span>
+                            </div>
+                            """
+                            st.markdown(blank_box_html, unsafe_allow_html=True)
+                            
+                            # 빈 칸 아래 기계 이름 버튼
+                            if st.button(f"⚙️ {mach_name}", key=f"btn_mach_{i}", use_container_width=True):
+                                # 메인 대시보드로 데이터 넘기기
+                                st.session_state.user_team = f"{selected_factory} / {selected_dept} / {selected_line}"
+                                st.session_state.user_machine = mach_name
+                                st.session_state.auth_step = "main_app"
+                                st.rerun()
+
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ======================================================================
@@ -319,11 +308,11 @@ elif st.session_state.auth_step == "main_app":
 
     st.title(f"🖥️ [{selected_mach}] 실시간 관제 대시보드")
 
-    with st.expander(f"🏷️ 선택된 기계 명판: 바이알 {selected_mach} - (주)이수이엔지", expanded=False):
+    with st.expander(f"🏷️ 선택된 기계 명판: {selected_mach} - (주)이수이엔지", expanded=False):
         n_col1, n_col2 = st.columns(2)
         n_col1.markdown(f"**관리번호:** `MGT-2026-{hash(selected_mach) % 1000:03d}`")
         n_col1.markdown("**프로덕션 이어 (제조년도):** `2024년`")
-        n_col2.markdown(f"**모델명:** `ISU-V-{selected_mach[:2]}-X1`")
+        n_col2.markdown(f"**모델명:** `ISU-{hash(selected_mach) % 100:02d}-X1`")
         n_col2.markdown("**제조사:** `(주)이수이엔지`")
 
     urgent_parts = mach_df[(mach_df['남은시간'] <= 200) | (mach_df[c_stock] <= 2)]
