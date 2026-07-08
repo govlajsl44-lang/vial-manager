@@ -22,7 +22,6 @@ def get_base64_encoded_image(image_path):
     return "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1600"
 
 encoded_bg = get_base64_encoded_image("정관장 이미지.jpg")
-# 사용자 지정 KGC 로고 (같은 폴더에 kgc_logo.png 파일이 있어야 합니다)
 encoded_logo = get_base64_encoded_image("kgc_logo.png")
 
 # ======================================================================
@@ -42,36 +41,54 @@ if "user_db" not in st.session_state:
     st.session_state.user_db = {"admin": {"password": "1234", "name": "관리자", "sabun": "9999", "team": "설비보전팀"}}
 
 # ======================================================================
-# 3. 🎨 [통합 CSS 및 전역 KGC 로고 로딩 인디게이터 엔진]
+# 3. 🎨 [통합 CSS 및 기업형 맥박(Pulse/Ripple) 로딩 인디게이터]
 # ======================================================================
 global_loader_css = f"""
     <style>
-    /* 로고 펄스(숨쉬기) 애니메이션 정의 */
-    @keyframes pulse-logo {{
-        0% {{ transform: scale(0.95); opacity: 0.7; }}
-        50% {{ transform: scale(1.1); opacity: 1; }}
-        100% {{ transform: scale(0.95); opacity: 0.7; }}
+    /* 1. 바깥쪽으로 퍼져나가는 파동(Ripple) 애니메이션 */
+    @keyframes corporate-ripple {{
+        0% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0.6); }}
+        70% {{ box-shadow: 0 0 0 30px rgba(0, 123, 236, 0); }}
+        100% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0); }}
+    }}
+    /* 2. 심장 박동처럼 미세하게 수축/이완하는 애니메이션 */
+    @keyframes corporate-beat {{
+        0% {{ transform: scale(0.95); }}
+        50% {{ transform: scale(1.02); }}
+        100% {{ transform: scale(0.95); }}
     }}
     
+    /* 버튼 클릭 시 발생하는 전역 스피너 오버레이 */
     div[data-testid="stSpinner"] {{
         position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
-        background-color: rgba(0, 0, 0, 0.65) !important; backdrop-filter: blur(3px); z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important;
+        background-color: rgba(0, 0, 0, 0.7) !important; backdrop-filter: blur(4px); z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important;
     }}
     div[data-testid="stSpinner"] > div > svg {{ display: none !important; }}
-    div[data-testid="stSpinner"] > div {{ color: white !important; font-size: 1.1rem !important; font-weight: bold !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 20px !important; }}
+    div[data-testid="stSpinner"] > div {{ color: white !important; font-size: 1.1rem !important; font-weight: bold !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 30px !important; }}
+    
+    /* 실제 로고가 담기는 원형 아이콘 컨테이너 */
     div[data-testid="stSpinner"] > div::before {{ 
-        content: ""; display: block; width: 130px; height: 130px; 
-        background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center; background-size: contain; 
-        animation: pulse-logo 1.5s infinite ease-in-out; 
+        content: ""; display: block; width: 110px; height: 110px; 
+        background-color: #ffffff; border-radius: 50%;
+        background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center; background-size: 70%; 
+        animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite; 
     }}
     
-    div[data-testid="stStatusWidget"] {{ position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background-color: rgba(0,0,0,0.5) !important; backdrop-filter: blur(2px) !important; display: flex !important; justify-content: center !important; align-items: center !important; z-index: 99998 !important; }}
+    /* 페이지 이동 시 발생하는 시스템 로딩 오버레이 */
+    div[data-testid="stStatusWidget"] {{ position: fixed !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background-color: rgba(0,0,0,0.7) !important; backdrop-filter: blur(4px) !important; display: flex !important; justify-content: center !important; align-items: center !important; z-index: 99998 !important; }}
     div[data-testid="stStatusWidget"] * {{ display: none !important; }}
     div[data-testid="stStatusWidget"]::after {{ 
         content: "🔄 시스템 처리 및 데이터 로딩 중..."; 
-        display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 1.1rem; font-weight: bold; 
-        background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: top center; background-size: 110px; padding-top: 130px; 
-        animation: pulse-logo 1.5s infinite ease-in-out;
+        display: flex; flex-direction: column; align-items: center; justify-content: flex-end; color: white; font-size: 1.1rem; font-weight: bold; padding-bottom: 20px;
+        width: 110px; height: 160px; /* 로고와 텍스트 배치 간격 */
+        background-color: transparent;
+        background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center top; background-size: 77px; 
+    }}
+    /* StatusWidget의 로고 부분을 원형 아이콘으로 독립시키기 위한 꼼수 (가상요소 중첩) */
+    div[data-testid="stStatusWidget"]::before {{
+        content: ""; position: absolute; top: calc(50% - 60px); left: calc(50% - 55px);
+        width: 110px; height: 110px; background-color: #ffffff; border-radius: 50%; z-index: -1;
+        animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite;
     }}
     </style>
 """
@@ -84,13 +101,21 @@ if st.session_state.auth_step == "login_gate":
         div[data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important; background-size: cover !important; background-position: center !important; background-attachment: fixed !important; }}
         .main {{ background: transparent !important; }}
         .styled-card {{ background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh; }}
-        .loading-overlay-intro {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: center; z-index: 999999; visibility: hidden; flex-direction: column; gap: 20px; color: white; font-size: 1.1rem; font-weight: bold; }}
-        .loading-logo-intro {{ width: 140px; animation: pulse-logo 1.5s infinite ease-in-out; }}
+        
+        .loading-overlay-intro {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 999999; visibility: hidden; flex-direction: column; gap: 30px; color: white; font-size: 1.1rem; font-weight: bold; }}
+        .loading-logo-intro {{ 
+            width: 110px; height: 110px; background-color: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite; 
+        }}
+        .loading-logo-intro img {{ width: 70%; }}
         .loading-active-intro {{ visibility: visible; }}
         </style>
         
         <div class="loading-overlay-intro" id="loadingOverlayIntro">
-            <img src="{encoded_logo}" class="loading-logo-intro" alt="KGC Logo" />
+            <div class="loading-logo-intro">
+                <img src="{encoded_logo}" alt="KGC Logo" />
+            </div>
             <div>🔄 스마트 앱 엔진 로드 중...</div>
         </div>
         <script>
