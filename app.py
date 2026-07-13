@@ -27,7 +27,7 @@ SP_STOCK = "stock"
 ML_DATE = "log_date"
 ML_MACHINE = "machine_name"
 ML_PART = "part_name"
-ML_WORKER = "worker"
+ML_WORKER = "worker_name"
 ML_CONTENT = "content"
 
 # UI 전용 (DB 미저장)
