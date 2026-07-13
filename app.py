@@ -202,14 +202,7 @@ def display_maintenance_logs(machine_name):
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 
-def get_machine_parts_df(all_parts_df, machine_name):
-    if all_parts_df is None:
-        return pd.DataFrame()
-
-    mach_df = all_parts_df[all_parts_df[SP_MACHINE] == machine_name].copy()
-    if not mach_df.empty:
-        return mach_df
-
+def get_demo_data(machine_name):
     return pd.DataFrame({
         SP_ID: ["D001", "D002", "D003", "D004"],
         SP_MACHINE: [machine_name] * 4,
@@ -223,6 +216,18 @@ def get_machine_parts_df(all_parts_df, machine_name):
         UI_INSTALL_DATE: ["2023-01-01", "2023-06-01", "2022-01-01", "2021-01-01"],
         UI_REMAINING_HOURS: [500, 100, 10000, 500],
     })
+
+def get_machine_parts_df(all_parts_df, machine_name):
+    # 수정된 방어 로직: DB가 완전히 비어있거나 에러가 나서 컬럼이 없을 경우 바로 데모 데이터 반환
+    if all_parts_df is None or all_parts_df.empty or SP_MACHINE not in all_parts_df.columns:
+        return get_demo_data(machine_name)
+
+    mach_df = all_parts_df[all_parts_df[SP_MACHINE] == machine_name].copy()
+    if not mach_df.empty:
+        return mach_df
+
+    # 데이터는 있지만 해당 기계의 부품이 없는 경우 데모 데이터 반환
+    return get_demo_data(machine_name)
 
 
 def is_demo_part(part_id):
@@ -821,10 +826,16 @@ def render_dashboard(all_parts_df):
 
     selected_mach = st.session_state.user_machine
     user = st.session_state["user"]
+    
+    # 수정된 방어 로직: 에러가 나지 않고 바로 안전하게 처리됩니다.
     mach_df = get_machine_parts_df(all_parts_df, selected_mach)
 
-    if all_parts_df is not None and all_parts_df[all_parts_df[SP_MACHINE] == selected_mach].empty:
-        st.info("💡 Supabase에 해당 기계 데이터가 없어 시연용 임시 부품을 표시합니다.")
+    # 데이터가 없을 때 띄우는 안내 메시지 판별 로직 보완
+    is_demo_mode = False
+    if all_parts_df is None or all_parts_df.empty or SP_MACHINE not in all_parts_df.columns:
+        is_demo_mode = True
+    elif all_parts_df[all_parts_df[SP_MACHINE] == selected_mach].empty:
+        is_demo_mode = True
 
     nav_col1, nav_col2, nav_col3 = st.columns([6, 2, 2])
     with nav_col1:
@@ -839,6 +850,10 @@ def render_dashboard(all_parts_df):
             st.rerun()
 
     st.title(f"🖥️ [{selected_mach}] 실시간 관제 대시보드")
+    
+    # DB에 기계 부품이 아직 등록되지 않았을 때 띄우는 경고창 추가
+    if is_demo_mode:
+        st.warning("💡 현재 DB에 등록된 해당 기계 부품이 없어 시연용 임시 부품을 표시합니다. [5. 신규 부품 등록] 탭에서 실제 부품을 추가해주세요.")
 
     with st.expander(f"🏷️ 선택된 기계 명판: {selected_mach} - (주)이수이엔지", expanded=False):
         n_col1, n_col2 = st.columns(2)
