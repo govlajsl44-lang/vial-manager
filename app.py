@@ -748,7 +748,7 @@ def render_tab_chat(selected_mach):
 
 
 # ======================================================================
-# 탭 5: 신규 부품 등록
+# 탭 5: 신규 부품 등록 (수정본: 수명 시간 삭제, 성공 메시지 유지)
 # ======================================================================
 def render_tab_register_part(selected_mach):
     if not is_authenticated():
@@ -780,8 +780,9 @@ def render_tab_register_part(selected_mach):
         with st.container():
             st.text_input("대상 기계 (machine_name)", value=selected_mach, disabled=True, key="reg_machine_display")
             st.text_input("등록자 (자동기입)", value=worker_name, disabled=True, key="reg_worker_display")
+            
+            # ✅ 수정포인트 1: 권장 수명(시간) 입력칸 삭제 완료
             reg_life_m = st.number_input("권장 수명 (life_m, 월)", min_value=0, value=12, step=1, key="reg_life_m")
-            reg_life_h = st.number_input("권장 수명 (life_h, 시간)", min_value=0, value=8000, step=100, key="reg_life_h")
             reg_stock = st.number_input("초기 재고 (stock, EA)", min_value=0, value=1, step=1, key="reg_stock")
 
             if st.button("📥 신규 부품 등록", type="primary", use_container_width=True, key="reg_part_submit"):
@@ -793,7 +794,7 @@ def render_tab_register_part(selected_mach):
                         SP_PART: reg_name.strip(),
                         SP_SPEC: reg_spec.strip() or None,
                         SP_LIFE_M: int(reg_life_m),
-                        SP_LIFE_H: int(reg_life_h),
+                        SP_LIFE_H: 0,  # ✅ DB 에러 방지를 위해 시간은 0으로 강제 숨김 처리
                         SP_STOCK: int(reg_stock),
                     }
                     if reg_manual.strip():
@@ -809,12 +810,12 @@ def render_tab_register_part(selected_mach):
                                 ML_WORKER: worker_name,
                                 ML_CONTENT: f"신규 부품 등록: {reg_name.strip()}",
                             })
-                            st.success(f"✅ [{reg_name.strip()}] 부품이 등록되었습니다.")
+                            # ✅ 수정포인트 2: 새로고침 로직을 빼고, 메시지가 화면에 확실히 남도록 처리
+                            st.success(f"🎉 성공! [{reg_name.strip()}] 부품이 데이터베이스에 등록되었습니다.")
+                            st.balloons() # 등록 성공 시 풍선 애니메이션 추가!
                             st.cache_data.clear()
-                            st.rerun()
                         else:
                             st.error(f"❌ 부품 등록 실패: {err}")
-
 
 # ======================================================================
 # 화면: 메인 대시보드
