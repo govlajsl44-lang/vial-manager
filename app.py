@@ -1,6 +1,7 @@
 import base64
 import datetime
 import os
+import time  # 알림 대기 시간을 위한 모듈 추가
 import urllib.parse
 
 import pandas as pd
@@ -23,11 +24,11 @@ SP_LIFE_H = "life_h"
 SP_MANUAL = "manual_url"
 SP_STOCK = "stock"
 
-# maintenance_logs 컬럼
+# maintenance_logs 컬럼 (worker 에러 수정을 위해 worker_name으로 변경)
 ML_DATE = "log_date"
 ML_MACHINE = "machine_name"
 ML_PART = "part_name"
-ML_WORKER = "worker_name"
+ML_WORKER = "worker_name"  
 ML_CONTENT = "content"
 
 # UI 전용 (DB 미저장)
@@ -218,7 +219,6 @@ def get_demo_data(machine_name):
     })
 
 def get_machine_parts_df(all_parts_df, machine_name):
-    # 수정된 방어 로직: DB가 완전히 비어있거나 에러가 나서 컬럼이 없을 경우 바로 데모 데이터 반환
     if all_parts_df is None or all_parts_df.empty or SP_MACHINE not in all_parts_df.columns:
         return get_demo_data(machine_name)
 
@@ -226,7 +226,6 @@ def get_machine_parts_df(all_parts_df, machine_name):
     if not mach_df.empty:
         return mach_df
 
-    # 데이터는 있지만 해당 기계의 부품이 없는 경우 데모 데이터 반환
     return get_demo_data(machine_name)
 
 
@@ -515,7 +514,9 @@ def render_tab_parts(mach_df, selected_mach):
                                 ML_CONTENT: f"재고 수량 수동 보정: {new_stock} EA",
                             })
                             if log_ok:
-                                st.success("✅ 재고 수량 수정 및 작업자 기록 완료")
+                                st.toast("✅ 수치 보정 완료", icon="💾")
+                                st.success("재고 수량 수정 및 작업자 기록이 완료되었습니다.")
+                                time.sleep(1.2)
                                 st.cache_data.clear()
                                 st.rerun()
                             else:
@@ -546,8 +547,9 @@ def render_tab_parts(mach_df, selected_mach):
                                 ML_CONTENT: f"[{selected_mach}] 신품 교체 완료 및 사이클 리셋.",
                             })
                             if log_ok:
-                                st.success(f"🎉 [{selected_part}] 신품 장착 및 정비 일지 저장 완료.")
-                                st.balloons()
+                                st.toast("✅ 신품 교체 및 자산 리셋 완료", icon="🔄")
+                                st.success(f"[{selected_part}] 신품 교체 처리가 데이터베이스에 안전하게 기록되었습니다.")
+                                time.sleep(1.2)
                                 st.cache_data.clear()
                                 st.rerun()
                             else:
@@ -616,7 +618,9 @@ def render_tab_maintenance_logs(mach_df, selected_mach):
                             ML_CONTENT: log_content.strip(),
                         })
                         if ok:
-                            st.success("✅ 정비 이력이 Supabase에 저장되었습니다.")
+                            st.toast("✅ 정비 일지 기록 완료", icon="📝")
+                            st.success("정비 이력이 Supabase에 안전하게 저장되었습니다.")
+                            time.sleep(1.2)
                             st.cache_data.clear()
                             st.rerun()
                         else:
@@ -748,7 +752,7 @@ def render_tab_chat(selected_mach):
 
 
 # ======================================================================
-# 탭 5: 신규 부품 등록 (수정본: 수명 시간 삭제, 성공 메시지 유지)
+# 탭 5: 신규 부품 등록
 # ======================================================================
 def render_tab_register_part(selected_mach):
     if not is_authenticated():
@@ -781,7 +785,7 @@ def render_tab_register_part(selected_mach):
             st.text_input("대상 기계 (machine_name)", value=selected_mach, disabled=True, key="reg_machine_display")
             st.text_input("등록자 (자동기입)", value=worker_name, disabled=True, key="reg_worker_display")
             
-            # ✅ 수정포인트 1: 권장 수명(시간) 입력칸 삭제 완료
+            # 수명 시간 제거 완료. 월(month)만 입력받습니다.
             reg_life_m = st.number_input("권장 수명 (life_m, 월)", min_value=0, value=12, step=1, key="reg_life_m")
             reg_stock = st.number_input("초기 재고 (stock, EA)", min_value=0, value=1, step=1, key="reg_stock")
 
@@ -794,7 +798,7 @@ def render_tab_register_part(selected_mach):
                         SP_PART: reg_name.strip(),
                         SP_SPEC: reg_spec.strip() or None,
                         SP_LIFE_M: int(reg_life_m),
-                        SP_LIFE_H: 0,  # ✅ DB 에러 방지를 위해 시간은 0으로 강제 숨김 처리
+                        SP_LIFE_H: 0,  # DB 에러 방지를 위해 시간은 0으로 강제 처리
                         SP_STOCK: int(reg_stock),
                     }
                     if reg_manual.strip():
@@ -810,12 +814,14 @@ def render_tab_register_part(selected_mach):
                                 ML_WORKER: worker_name,
                                 ML_CONTENT: f"신규 부품 등록: {reg_name.strip()}",
                             })
-                            # ✅ 수정포인트 2: 새로고침 로직을 빼고, 메시지가 화면에 확실히 남도록 처리
-                            st.success(f"🎉 성공! [{reg_name.strip()}] 부품이 데이터베이스에 등록되었습니다.")
-                            st.balloons() # 등록 성공 시 풍선 애니메이션 추가!
+                            st.toast("✅ 신규 부품 등록 완료", icon="📥")
+                            st.success(f"[{reg_name.strip()}] 부품이 시스템에 성공적으로 등록되었습니다.")
+                            time.sleep(1.2)
                             st.cache_data.clear()
+                            st.rerun()
                         else:
                             st.error(f"❌ 부품 등록 실패: {err}")
+
 
 # ======================================================================
 # 화면: 메인 대시보드
@@ -828,10 +834,8 @@ def render_dashboard(all_parts_df):
     selected_mach = st.session_state.user_machine
     user = st.session_state["user"]
     
-    # 수정된 방어 로직: 에러가 나지 않고 바로 안전하게 처리됩니다.
     mach_df = get_machine_parts_df(all_parts_df, selected_mach)
 
-    # 데이터가 없을 때 띄우는 안내 메시지 판별 로직 보완
     is_demo_mode = False
     if all_parts_df is None or all_parts_df.empty or SP_MACHINE not in all_parts_df.columns:
         is_demo_mode = True
@@ -852,7 +856,6 @@ def render_dashboard(all_parts_df):
 
     st.title(f"🖥️ [{selected_mach}] 실시간 관제 대시보드")
     
-    # DB에 기계 부품이 아직 등록되지 않았을 때 띄우는 경고창 추가
     if is_demo_mode:
         st.warning("💡 현재 DB에 등록된 해당 기계 부품이 없어 시연용 임시 부품을 표시합니다. [5. 신규 부품 등록] 탭에서 실제 부품을 추가해주세요.")
 
