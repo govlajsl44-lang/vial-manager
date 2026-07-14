@@ -11,6 +11,7 @@ from supabase import create_client
 # ======================================================================
 # 상수: Supabase 테이블 및 컬럼
 # ======================================================================
+TABLE_MACHINES = "machines"  # 신규 추가된 기기 마스터 테이블
 TABLE_SPARE_PARTS = "spare_parts"
 TABLE_MAINTENANCE_LOGS = "maintenance_logs"
 
@@ -36,24 +37,7 @@ UI_CURRENT_HOURS = "current_hours"
 UI_INSTALL_DATE = "install_date"
 UI_REMAINING_HOURS = "남은시간"
 
-FACTORY_HIERARCHY = {
-    "부여공장": {
-        "제품 1팀": {
-            "미니병": [
-                "바이알 충전기", "바이알 캡핑기", "바이알 살균기", "바이알 병 정렬기",
-                "바이알 세병기", "바이알 레이블", "바이알 포장 로봇", "활삼 충전기",
-                "활삼 살균기", "활삼 레이블", "활삼 단위 포장기", "활삼 세트 지함 포장기", "활삼 외포장기",
-            ],
-            "액상": ["액상 충전기", "액상 캡핑기", "액상 세병기", "액상 레이블", "액상 적재 로봇", "화장품 충전기"],
-            "스틱": ["스틱 1호 충전기", "스틱 2호 충전기", "레토르트 살균기", "스틱 단위 포장기"],
-        },
-        "제품 2팀": {}, "시설에너지 관리팀": {}, "지원팀": {}, "공정개선팀": {}, "산업안전보건팀": {},
-    },
-    "원주공장": {
-        "생산팀": {}, "시설에너지 관리팀": {}, "지원팀": {}, "산업안전보건팀": {},
-    },
-}
-
+# (기존 하드코딩된 FACTORY_HIERARCHY는 삭제되었습니다. DB에서 불러옵니다.)
 
 # ======================================================================
 # Supabase 연결 및 데이터 레이어
@@ -64,6 +48,15 @@ def init_supabase():
     if url.endswith("/rest/v1"):
         url = url[: -len("/rest/v1")]
     return create_client(url, st.secrets["SUPABASE_KEY"])
+
+@st.cache_data(ttl=10)
+def load_machines():
+    """기기 마스터 테이블에서 전체 목록을 불러옵니다."""
+    try:
+        response = init_supabase().table(TABLE_MACHINES).select("*").execute()
+        return pd.DataFrame(response.data)
+    except Exception:
+        return pd.DataFrame()
 
 
 # ======================================================================
@@ -309,64 +302,7 @@ def render_main_css(encoded_bg):
 
 
 # ======================================================================
-# 화면: 로그인
-# ======================================================================
-def render_login_screen():
-    col1, col2, col3 = st.columns([1, 1.5, 1])
-    with col2:
-        st.markdown('<div class="styled-card">', unsafe_allow_html=True)
-        st.markdown(
-            "<h2 style='text-align:center; color:white; font-weight: 800; margin-bottom: 0;'>스마트 정비 앱</h2>",
-            unsafe_allow_html=True,
-        )
-        st.markdown("<p style='text-align:center; color:#AAAAAA; margin-bottom: 25px;'>KGC 인삼공사</p>", unsafe_allow_html=True)
-
-        tab_login, tab_register = st.tabs(["로그인", "회원가입"])
-        with tab_login:
-            login_email = st.text_input("이메일", placeholder="example@company.com", key="l_email")
-            login_pw = st.text_input("비밀번호", type="password", placeholder="비밀번호를 입력하세요", key="l_pw")
-            if st.button("로그인", type="primary", use_container_width=True):
-                if not login_email.strip() or not login_pw:
-                    st.error("❌ 이메일과 비밀번호를 입력해 주세요.")
-                else:
-                    with st.spinner("Supabase Auth 로그인 중..."):
-                        ok, response, err = auth_sign_in(login_email.strip(), login_pw)
-                        if ok and store_auth_user(response):
-                            st.session_state.auth_step = "setup_gate"
-                            st.success("✅ 로그인 성공")
-                            st.rerun()
-                        else:
-                            st.error(f"❌ 로그인 실패: {err or '인증 정보를 확인해 주세요.'}")
-
-        with tab_register:
-            reg_email = st.text_input("이메일", placeholder="가입할 이메일", key="field_email_reg")
-            reg_name = st.text_input("이름", placeholder="표시 이름", key="field_name_reg")
-            reg_pw = st.text_input("비밀번호", type="password", placeholder="등록할 비밀번호", key="field_pw_reg")
-            reg_pw_c = st.text_input("비밀번호 확인", type="password", placeholder="비밀번호 재입력", key="field_pwc_reg")
-            if st.button("회원가입", use_container_width=True, key="action_register_submit"):
-                if not reg_email.strip() or not reg_pw:
-                    st.error("❌ 이메일과 비밀번호를 입력해 주세요.")
-                elif reg_pw != reg_pw_c:
-                    st.error("❌ 비밀번호 확인 입력값이 일치하지 않습니다.")
-                else:
-                    with st.spinner("Supabase Auth 회원가입 중..."):
-                        ok, response, err = auth_sign_up(
-                            reg_email.strip(), reg_pw, reg_name.strip() or None
-                        )
-                        if ok:
-                            if response.user and store_auth_user(response):
-                                st.session_state.auth_step = "setup_gate"
-                                st.success("✅ 회원가입 및 로그인 완료")
-                                st.rerun()
-                            else:
-                                st.success("✅ 회원가입 신청 완료. 이메일 인증 후 로그인해 주세요.")
-                        else:
-                            st.error(f"❌ 회원가입 실패: {err}")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ======================================================================
-# 화면: 공정/기기 라우팅
+# 화면: DB 연동형 공정/기기 라우팅
 # ======================================================================
 def render_setup_screen():
     if not is_authenticated():
@@ -388,53 +324,61 @@ def render_setup_screen():
             st.rerun()
         st.markdown("<hr style='border-color: #555; margin-bottom: 25px;'>", unsafe_allow_html=True)
 
+        # DB에서 기기 리스트 로드
+        df_machines = load_machines()
+
+        if df_machines.empty or "factory" not in df_machines.columns:
+            st.error("🚧 데이터베이스(machines 테이블)에 등록된 설비가 없습니다. 먼저 설비 데이터를 추가해 주세요.")
+            st.markdown("</div>", unsafe_allow_html=True)
+            return
+
         step_col1, step_col2 = st.columns(2)
         with step_col1:
-            factory_options = ["선택해주세요"] + list(FACTORY_HIERARCHY.keys())
+            factory_options = ["선택해주세요"] + sorted(df_machines["factory"].dropna().unique().tolist())
             selected_factory = st.selectbox("1️⃣ 공장 선택", factory_options)
 
         with step_col2:
             if selected_factory != "선택해주세요":
-                dept_options = ["선택해주세요"] + list(FACTORY_HIERARCHY[selected_factory].keys())
+                dept_options = ["선택해주세요"] + sorted(df_machines[df_machines["factory"] == selected_factory]["dept"].dropna().unique().tolist())
                 selected_dept = st.selectbox("2️⃣ 부서 선택", dept_options)
             else:
                 selected_dept = "선택해주세요"
 
         if selected_dept != "선택해주세요":
-            line_dict = FACTORY_HIERARCHY[selected_factory][selected_dept]
-            if not line_dict:
-                st.info("🚧 해당 부서의 세부 생산 라인 및 기기 정보는 아직 시스템 등록 준비 중(미정)입니다.")
-            else:
-                step_col3, step_col4 = st.columns(2)
-                with step_col3:
-                    line_options = ["선택해주세요"] + list(line_dict.keys())
-                    selected_line = st.selectbox("3️⃣ 생산 라인 선택", line_options)
+            line_options = ["선택해주세요"] + sorted(df_machines[(df_machines["factory"] == selected_factory) & (df_machines["dept"] == selected_dept)]["line"].dropna().unique().tolist())
+            
+            step_col3, step_col4 = st.columns(2)
+            with step_col3:
+                selected_line = st.selectbox("3️⃣ 생산 라인 선택", line_options)
+            
+            if selected_line != "선택해주세요":
+                # 선택한 조건에 맞는 기기 목록 필터링
+                mach_list = df_machines[(df_machines["factory"] == selected_factory) & (df_machines["dept"] == selected_dept) & (df_machines["line"] == selected_line)]["machine_name"].dropna().tolist()
+                
                 with step_col4:
-                    if selected_line != "선택해주세요":
-                        st.success(f"✅ 총 {len(line_dict[selected_line])}대의 설비가 등록되어 있습니다.")
+                    st.success(f"✅ 총 {len(mach_list)}대의 설비가 등록되어 있습니다.")
 
-                if selected_line != "선택해주세요":
-                    st.markdown(
-                        f"<h4 style='color: #007BEC; text-align: center; margin: 30px 0 20px; font-weight: 800;'>4️⃣ 대상 기기 선택 ({selected_line})</h4>",
-                        unsafe_allow_html=True,
-                    )
-                    img_cols = st.columns(4, gap="medium")
-                    for i, mach_name in enumerate(line_dict[selected_line]):
-                        with img_cols[i % 4]:
-                            st.markdown(
-                                """
-                                <div style="width:100%; aspect-ratio:16/9; background:rgba(255,255,255,0.03);
-                                border:1px dashed rgba(255,255,255,0.2); border-radius:8px; margin-bottom:10px;
-                                display:flex; justify-content:center; align-items:center;">
-                                <span style="color:rgba(255,255,255,0.2); font-size:0.8rem;">Image</span></div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
-                            if st.button(f"⚙️ {mach_name}", key=f"btn_mach_{i}", use_container_width=True):
-                                st.session_state.user_team = f"{selected_factory} / {selected_dept} / {selected_line}"
-                                st.session_state.user_machine = mach_name
-                                st.session_state.auth_step = "main_app"
-                                st.rerun()
+                st.markdown(
+                    f"<h4 style='color: #007BEC; text-align: center; margin: 30px 0 20px; font-weight: 800;'>4️⃣ 대상 기기 선택 ({selected_line})</h4>",
+                    unsafe_allow_html=True,
+                )
+                img_cols = st.columns(4, gap="medium")
+                for i, mach_name in enumerate(mach_list):
+                    with img_cols[i % 4]:
+                        st.markdown(
+                            """
+                            <div style="width:100%; aspect-ratio:16/9; background:rgba(255,255,255,0.03);
+                            border:1px dashed rgba(255,255,255,0.2); border-radius:8px; margin-bottom:10px;
+                            display:flex; justify-content:center; align-items:center;">
+                            <span style="color:rgba(255,255,255,0.2); font-size:0.8rem;">Image</span></div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                        if st.button(f"⚙️ {mach_name}", key=f"btn_mach_{i}", use_container_width=True):
+                            st.session_state.user_team = f"{selected_factory} / {selected_dept} / {selected_line}"
+                            st.session_state.user_machine = mach_name
+                            st.session_state.auth_step = "main_app"
+                            st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
 
