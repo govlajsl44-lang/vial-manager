@@ -224,9 +224,11 @@ def render_login_screen():
         st.markdown('<div class="styled-card">', unsafe_allow_html=True)
         st.markdown("<h2 style='text-align:center; color:white; font-weight: 800; margin-bottom: 0;'>스마트 정비 앱</h2>", unsafe_allow_html=True)
         tab_login, tab_register = st.tabs(["로그인", "회원가입"])
+        
         with tab_login:
-            login_email = st.text_input("이메일")
-            login_pw = st.text_input("비밀번호", type="password")
+            # key를 추가하여 중복 방지
+            login_email = st.text_input("이메일", key="login_email_input")
+            login_pw = st.text_input("비밀번호", type="password", key="login_pw_input")
             if st.button("로그인", type="primary", use_container_width=True):
                 with st.spinner("로그인 중..."):
                     ok, response, err = auth_sign_in(login_email.strip(), login_pw)
@@ -235,10 +237,12 @@ def render_login_screen():
                         st.rerun()
                     else: 
                         st.error(f"❌ 로그인 실패: {err}")
+                        
         with tab_register:
-            reg_email = st.text_input("가입 이메일")
-            reg_name = st.text_input("이름")
-            reg_pw = st.text_input("비밀번호", type="password")
+            # key를 추가하여 중복 방지
+            reg_email = st.text_input("가입 이메일", key="reg_email_input")
+            reg_name = st.text_input("이름", key="reg_name_input")
+            reg_pw = st.text_input("비밀번호", type="password", key="reg_pw_input")
             if st.button("회원가입", use_container_width=True):
                 with st.spinner("회원가입 중..."):
                     ok, response, err = auth_sign_up(reg_email.strip(), reg_pw, reg_name.strip() or None)
@@ -246,6 +250,7 @@ def render_login_screen():
                         st.success("✅ 회원가입 성공!")
                     else: 
                         st.error(f"❌ 실패: {err}")
+                        
         st.markdown("</div>", unsafe_allow_html=True)
 
 def render_setup_screen():
