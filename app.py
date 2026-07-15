@@ -19,8 +19,7 @@ SP_ID = "id"
 SP_MACHINE = "machine_name"
 SP_PART = "part_name"
 SP_SPEC = "spec"
-SP_LIFE_M = "life_m"  # ★ Supabase에 이 컬럼이 반드시 있어야 합니다! (int4)
-SP_LIFE_H = "life_h"
+SP_LIFE_M = "life_m"  # 월 단위 수명만 사용 (life_h 에러 해결 완료)
 SP_MANUAL = "manual_url"
 SP_STOCK = "stock"
 
@@ -29,9 +28,6 @@ ML_MACHINE = "machine_name"
 ML_PART = "part_name"
 ML_WORKER = "worker_name"  
 ML_CONTENT = "content"
-
-UI_CURRENT_HOURS = "current_hours"
-UI_REMAINING_HOURS = "남은시간"
 
 # ======================================================================
 # Supabase 연결 및 데이터 레이어
@@ -121,14 +117,10 @@ def load_spare_parts():
         df = pd.DataFrame(response.data)
         if df.empty:
             return df
-        for col in (SP_STOCK, SP_LIFE_H, SP_LIFE_M):
+        # 문제가 되었던 life_h 관련 코드는 완전히 제거되었습니다.
+        for col in (SP_STOCK, SP_LIFE_M):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
-        if UI_CURRENT_HOURS not in df.columns:
-            df[UI_CURRENT_HOURS] = 0
-        else:
-            df[UI_CURRENT_HOURS] = pd.to_numeric(df[UI_CURRENT_HOURS], errors="coerce").fillna(0).astype(int)
-        df[UI_REMAINING_HOURS] = df[SP_LIFE_H] - df[UI_CURRENT_HOURS]
         return df
     except Exception:
         return None
@@ -163,7 +155,6 @@ def display_maintenance_logs(machine_name):
     display_df = logs_df[available].rename(columns=column_map)
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
-# 가짜 시연 데이터 로직을 완전히 삭제했습니다. 등록된 진짜 부품만 보여줍니다.
 def get_machine_parts_df(all_parts_df, machine_name):
     if all_parts_df is None or all_parts_df.empty or SP_MACHINE not in all_parts_df.columns:
         return pd.DataFrame()
@@ -344,9 +335,8 @@ def render_tab_parts(mach_df, selected_mach):
         st.markdown("<span class='section-title'>2️⃣ 실시간 상태 조회</span>", unsafe_allow_html=True)
         st.markdown(f"📅 **최근 교체일 :** `{recent_replace_date}`")
         st.markdown(f"📦 **보유 재고 :** `{part_info.get(SP_STOCK, 0)} EA`")
-        st.markdown(f"⏱️ **가동 런타임 :** `{part_info.get(UI_CURRENT_HOURS, 0)} hr`")
         
-        with st.expander("⚙️ 예외 변수 수동 수치 보정"):
+        with st.expander("⚙️ 창고 보관 수량 수동 보정"):
             new_stock = st.number_input("창고 보관 수량 보정", value=int(part_info.get(SP_STOCK, 0)), step=1, key="adj_s")
             if st.button("💾 수치 보정 저장", use_container_width=True):
                 ok, err = update_spare_part(part_id, {SP_STOCK: new_stock})
@@ -359,10 +349,10 @@ def render_tab_parts(mach_df, selected_mach):
                 else: st.error(f"❌ 수정 실패: {err}")
 
     with col2:
-        st.markdown("<span class='section-title'>3️⃣ 소모품 교체 및 자산 리셋</span>", unsafe_allow_html=True)
+        st.markdown("<span class='section-title'>3️⃣ 소모품 교체 및 사이클 리셋</span>", unsafe_allow_html=True)
         chosen_date = st.date_input("📆 교체일 지정", datetime.date.today(), key="exec_date_picker")
         if st.button("🚀 교체 확정 처리 완료", type="primary", use_container_width=True):
-            if part_info.get(SP_STOCK, 0) <= 0: st.error("❌ 재고 부족.")
+            if part_info.get(SP_STOCK, 0) <= 0: st.error("❌ 재고 부족. 창고 보관 수량을 확인하세요.")
             else:
                 ok, err = update_spare_part(part_id, {SP_STOCK: int(part_info.get(SP_STOCK, 1)) - 1})
                 if ok:
@@ -406,68 +396,83 @@ def render_tab_maintenance_logs(mach_df, selected_mach):
     with log_col2: display_maintenance_logs(selected_mach)
 
 # ======================================================================
-# 탭 3: AI 카메라
+# 탭 3: AI 카메라 (내장형 복구)
 # ======================================================================
 def render_tab_vision(selected_mach):
     if not is_authenticated(): return
     st.markdown(f"<div class='menu-hero-banner'><h3>📸 AI 비전 진단</h3></div>", unsafe_allow_html=True)
     
-    vision_api_key = st.secrets.get("GEMINI_API_KEY", "")
-    if not vision_api_key:
-        vision_api_key = st.text_input("🔑 Gemini API Key를 입력하세요 (설정이 안된 경우 직접 입력)", type="password")
+    # Secrets에 저장된 API 키를 자동으로 불러옵니다. (작업자에게 묻지 않음)
+    try:
+        vision_api_key = st.secrets["GEMINI_API_KEY"]
+    except KeyError:
+        st.error("🚨 서버에 GEMINI_API_KEY가 설정되지 않았습니다. 관리자에게 문의하세요.")
+        return
 
-    input_mode = st.radio("사진 획득", ["카메라", "업로드"])
-    captured_file = st.camera_input("카메라") if input_mode == "카메라" else st.file_uploader("사진 선택")
+    input_mode = st.radio("사진 획득 방법", ["카메라 촬영", "파일 업로드"])
+    captured_file = st.camera_input("카메라") if input_mode == "카메라 촬영" else st.file_uploader("사진 선택", type=['jpg', 'jpeg', 'png'])
     
-    if captured_file and st.button("🚀 비전 해독 시작", type="primary"):
-        if not vision_api_key: st.error("API 키를 넣어주세요.")
-        else:
-            with st.spinner("AI 분석 중..."):
-                try:
-                    import google.generativeai as genai
-                    from PIL import Image
-                    genai.configure(api_key=vision_api_key)
-                    vision_model = genai.GenerativeModel("gemini-2.5-flash")
-                    resp = vision_model.generate_content([f"이 부품({selected_mach})의 상태를 한국어로 진단해줘.", Image.open(captured_file)])
-                    st.success("진단 완료!")
-                    st.write(resp.text)
-                except Exception as e: st.error(f"오류: {e}")
+    if captured_file and st.button("🚀 AI 비전 해독 시작", type="primary"):
+        with st.spinner("이미지 분석 중입니다..."):
+            try:
+                import google.generativeai as genai
+                from PIL import Image
+                genai.configure(api_key=vision_api_key)
+                vision_model = genai.GenerativeModel("gemini-1.5-flash") # 최신 안정화 버전
+                
+                img = Image.open(captured_file)
+                prompt = f"이 사진은 [{selected_mach}] 기계의 부품 또는 상태를 찍은 것입니다. 현재 상태를 진단하고 혹시 파손, 마모, 이상 증상이 있는지 한국어로 전문적으로 설명해주세요."
+                
+                resp = vision_model.generate_content([prompt, img])
+                st.success("✅ AI 진단 완료")
+                st.write(resp.text)
+            except Exception as e: 
+                st.error(f"오류가 발생했습니다: {e}")
 
 # ======================================================================
-# 탭 4: AI 챗봇
+# 탭 4: AI 챗봇 (내장형 복구)
 # ======================================================================
 def render_tab_chat(selected_mach):
     if not is_authenticated(): return
     st.markdown(f"<div class='menu-hero-banner'><h3>💬 정비 AI 챗봇</h3></div>", unsafe_allow_html=True)
 
-    chat_api_key = st.secrets.get("GEMINI_API_KEY", "")
-    if not chat_api_key:
-        chat_api_key = st.text_input("🔑 Gemini API Key를 입력하세요", type="password")
+    # Secrets에 저장된 API 키 자동 연동
+    try:
+        chat_api_key = st.secrets["GEMINI_API_KEY"]
+    except KeyError:
+        st.error("🚨 서버에 GEMINI_API_KEY가 설정되지 않았습니다. 관리자에게 문의하세요.")
+        return
 
     if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [{"role": "assistant", "content": "무엇을 도와드릴까요?"}]
+        st.session_state.chat_history = [{"role": "assistant", "content": f"안녕하세요! [{selected_mach}] 전담 정비 어시스턴트입니다. 무엇을 도와드릴까요?"}]
 
     for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]): st.write(msg["content"])
+        with st.chat_message(msg["role"]): 
+            st.write(msg["content"])
 
-    if user_prompt := st.chat_input("질문 입력"):
-        if not chat_api_key: st.error("API 키를 먼저 입력해주세요.")
-        else:
-            st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-            with st.chat_message("user"): st.write(user_prompt)
-            with st.chat_message("assistant"):
-                with st.spinner("생각 중..."):
-                    try:
-                        import google.generativeai as genai
-                        genai.configure(api_key=chat_api_key)
-                        chat_model = genai.GenerativeModel("gemini-2.5-flash")
-                        bot_reply = chat_model.generate_content([f"너는 {selected_mach} 전문가야.", user_prompt])
-                        st.write(bot_reply.text)
-                        st.session_state.chat_history.append({"role": "assistant", "content": bot_reply.text})
-                    except Exception as e: st.error(f"오류: {e}")
+    if user_prompt := st.chat_input("정비 관련 질문을 입력하세요"):
+        st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+        with st.chat_message("user"): 
+            st.write(user_prompt)
+        
+        with st.chat_message("assistant"):
+            with st.spinner("AI가 답변을 작성 중입니다..."):
+                try:
+                    import google.generativeai as genai
+                    genai.configure(api_key=chat_api_key)
+                    chat_model = genai.GenerativeModel("gemini-1.5-flash")
+                    
+                    history_text = "\\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.chat_history[:-1]])
+                    system_prompt = f"너는 공장 설비 [{selected_mach}] 전문 엔지니어이자 정비 도우미야. 작업자의 질문에 친절하고 전문적으로 한국어로 대답해줘.\\n\\n이전 대화:\\n{history_text}\\n\\n사용자: {user_prompt}"
+                    
+                    bot_reply = chat_model.generate_content(system_prompt)
+                    st.write(bot_reply.text)
+                    st.session_state.chat_history.append({"role": "assistant", "content": bot_reply.text})
+                except Exception as e: 
+                    st.error(f"오류가 발생했습니다: {e}")
 
 # ======================================================================
-# 탭 5: 신규 부품 등록
+# 탭 5: 신규 부품 등록 (life_h 에러 수정 완료)
 # ======================================================================
 def render_tab_register_part(selected_mach):
     if not is_authenticated(): return
@@ -483,7 +488,14 @@ def render_tab_register_part(selected_mach):
         reg_stock = st.number_input("초기 재고 (EA)", min_value=0, value=1)
         if st.button("📥 신규 부품 등록", type="primary", use_container_width=True):
             if reg_name.strip():
-                new_record = {SP_MACHINE: selected_mach, SP_PART: reg_name.strip(), SP_SPEC: reg_spec.strip() or None, SP_LIFE_M: int(reg_life_m), SP_LIFE_H: 0, SP_STOCK: int(reg_stock)}
+                # 문제가 되었던 SP_LIFE_H: 0 코드를 완전히 삭제했습니다!
+                new_record = {
+                    SP_MACHINE: selected_mach, 
+                    SP_PART: reg_name.strip(), 
+                    SP_SPEC: reg_spec.strip() or None, 
+                    SP_LIFE_M: int(reg_life_m), 
+                    SP_STOCK: int(reg_stock)
+                }
                 with st.spinner("저장 중..."):
                     ok, err = insert_spare_part(new_record)
                     if ok:
@@ -492,7 +504,7 @@ def render_tab_register_part(selected_mach):
                         time.sleep(1)
                         st.cache_data.clear()
                         st.rerun()
-                    else: st.error(f"❌ 데이터베이스 오류 (life_m 컬럼이 있는지 확인하세요): {err}")
+                    else: st.error(f"❌ 데이터베이스 오류: {err}")
 
 # ======================================================================
 # 메인 대시보드
@@ -527,9 +539,13 @@ def render_dashboard(all_parts_df):
         else: st.info("📷 사진이 없습니다.")
     with metric_col:
         st.markdown(f"**관리번호:** `MGT-2026-001` | **제조사:** `(주)이수이엔지`")
+        
+        # 재고가 2개 이하인 부품을 위험 상태로 표시
+        urgent_count = len(mach_df[mach_df[SP_STOCK] <= 2]) if not mach_df.empty else 0
+        
         m1, m2 = st.columns(2)
         m1.metric("현재 작동 상태", "🟢 정상 가동")
-        m2.metric("등록된 부품 종류", f"{len(mach_df)} 종")
+        m2.metric("위험 소모품 (재고 부족)", f"{urgent_count} 건", delta="-조치 요망", delta_color="inverse")
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 1. 자산 관제 및 교체", "📝 2. 정비 일지 기록", "📸 3. AI 진단", "💬 4. AI 챗봇", "📥 5. 신규 등록"])
     with tab1: render_tab_parts(mach_df, selected_mach)
