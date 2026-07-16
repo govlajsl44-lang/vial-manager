@@ -220,7 +220,7 @@ def render_main_css(encoded_bg):
         </style>
         """, unsafe_allow_html=True
     )
-    )
+
 
 def render_login_screen():
     col1, col2, col3 = st.columns([1, 1.5, 1])
