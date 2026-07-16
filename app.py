@@ -133,7 +133,7 @@ def load_maintenance_logs(machine_name=None):
         query = init_supabase().table(TABLE_MAINTENANCE_LOGS).select("*")
         if machine_name:
             query = query.eq(ML_MACHINE, machine_name)
-        response = query.order(ML_DATE, desc=True).order("id", desc=True).execute() # 가장 최근 기록을 정확히 불러옴
+        response = query.order(ML_DATE, desc=True).order("id", desc=True).execute() 
         return pd.DataFrame(response.data)
     except Exception:
         return pd.DataFrame()
@@ -171,10 +171,14 @@ def init_session_state():
         if key not in st.session_state:
             st.session_state[key] = value
 
+# 전체 화면 하단 넉넉한 스크롤 여백 추가! (.block-container)
 def render_global_css(encoded_logo):
     st.markdown(
         f"""
         <style>
+        .block-container {{ 
+            padding-bottom: 15rem !important; 
+        }}
         @keyframes corporate-ripple {{ 0% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0.6); }} 70% {{ box-shadow: 0 0 0 30px rgba(0, 123, 236, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0); }} }}
         @keyframes corporate-beat {{ 0% {{ transform: scale(0.95); }} 50% {{ transform: scale(1.02); }} 100% {{ transform: scale(0.95); }} }}
         div[data-testid="stSpinner"] {{ position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7) !important; backdrop-filter: blur(4px); z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; }}
@@ -204,14 +208,14 @@ def render_main_css(encoded_bg):
         header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
         div[data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(241, 245, 249, 0.86), rgba(241, 245, 249, 0.86)), url('{encoded_bg}') !important; background-size: cover !important; background-position: center !important; background-attachment: fixed !important; }}
         .styled-card {{ background-color: rgba(34, 34, 34, 0.96) !important; border-radius: 8px !important; padding: 30px !important; color: #FFFFFF !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; margin-top: 5vh; margin-bottom: 5vh; }}
-        .block-container {{ padding-top: 2.5rem !important; padding-bottom: 1rem !important; max-width: 96% !important; }}
+        .block-container {{ padding-top: 2.5rem !important; max-width: 96% !important; }}
         h1 {{ color: #0F172A !important; font-weight: 800 !important; font-size: 1.8rem !important; border-bottom: 3px solid #007BEC; padding-bottom: 8px; margin-bottom: 15px !important; }}
         div[data-testid="stMetric"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-top: 4px solid #007BEC !important; padding: 0.8rem !important; border-radius: 8px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05) !important; margin-bottom: 8px !important; }}
         div[data-testid="stContainer"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; padding: 1.2rem !important; border-radius: 8px !important; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important; margin-bottom: 15px !important; }}
         .section-title {{ background-color: #E0F2FE; color: #0369A1; padding: 6px 12px; border-radius: 4px; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: inline-block; }}
         .menu-hero-banner {{ background: linear-gradient(135deg, #007BEC 0%, #0059B2 100%); color: #FFFFFF !important; padding: 1rem !important; border-radius: 8px !important; margin-bottom: 15px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important; }}
         
-        /* 통합 관제 센터 빨간불 깜빡임 애니메이션 추가 (중괄호 수정 완료) */
+        /* 통합 관제 센터 빨간불 깜빡임 애니메이션 (문법 에러 수정 완료) */
         @keyframes alert-pulse {{
             0% {{ box-shadow: 0 0 0 0 rgba(217, 48, 37, 0.7); }}
             70% {{ box-shadow: 0 0 0 15px rgba(217, 48, 37, 0); }}
@@ -220,7 +224,6 @@ def render_main_css(encoded_bg):
         </style>
         """, unsafe_allow_html=True
     )
-
 
 def render_login_screen():
     col1, col2, col3 = st.columns([1, 1.5, 1])
@@ -274,20 +277,16 @@ def render_manager_dashboard(all_parts_df):
         st.error("데이터베이스에 등록된 기계가 없습니다.")
         return
 
-    # 정비 일지 전체를 로드해서 호출 상태를 확인합니다.
     all_logs_df = load_maintenance_logs()
 
-    # 상태 판별 로직: 1. 긴급 정비 요청 확인 -> 2. 부품 재고 부족 확인
     def get_machine_status(mach_name):
-        # 1. 사용자가 직접 '정비 요청' 버튼을 눌렀는지 일지에서 확인
         if all_logs_df is not None and not all_logs_df.empty:
             m_logs = all_logs_df[all_logs_df[ML_MACHINE] == mach_name]
             if not m_logs.empty:
-                latest_log = m_logs.iloc[0] # 가장 최근 기록
+                latest_log = m_logs.iloc[0]
                 if "[정비 요청]" in str(latest_log[ML_CONTENT]):
                     return "🚨 시설팀 호출됨", "#FEF2F2", "#DC2626", "border: 2px solid #DC2626; animation: alert-pulse 1.5s infinite;"
 
-        # 2. 부품 재고가 2개 이하인지 자동 감지
         if all_parts_df is not None and not all_parts_df.empty: 
             m_parts = all_parts_df[all_parts_df[SP_MACHINE] == mach_name]
             if not m_parts.empty:
@@ -297,7 +296,6 @@ def render_manager_dashboard(all_parts_df):
         
         return "🟢 정상 가동", "#F8FAFC", "#0F172A", "border: 1px solid #E2E8F0;"
 
-    # 부서(팀)별로 그룹화
     departments = sorted(df_machines["dept"].dropna().unique())
 
     for dept in departments:
@@ -309,7 +307,6 @@ def render_manager_dashboard(all_parts_df):
             st.markdown(f"<h4 style='color: #475569; margin-top:20px; margin-bottom:15px;'>📍 라인: {line}</h4>", unsafe_allow_html=True)
             line_machines = dept_machines[dept_machines["line"] == line]
             
-            # 한 줄에 4개의 기계 카드를 배치
             cols = st.columns(4)
             for i, (_, row) in enumerate(line_machines.iterrows()):
                 mach_name = row["machine_name"]
@@ -399,7 +396,7 @@ def render_setup_screen():
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================================
-# 탭 1 ~ 5 (기존 기능 유지)
+# 탭 1: 부품 상태 및 신품 교체
 # ======================================================================
 def render_tab_parts(mach_df, selected_mach):
     if not is_authenticated(): return
@@ -465,6 +462,9 @@ def render_tab_parts(mach_df, selected_mach):
         with q_col1: st.image(qr_api_url, caption="정비 태그 QR")
         with q_col2: st.code(qr_link)
 
+# ======================================================================
+# 탭 2: 정비 일지
+# ======================================================================
 def render_tab_maintenance_logs(mach_df, selected_mach):
     if not is_authenticated(): return
     worker_name = get_worker_name()
@@ -485,6 +485,9 @@ def render_tab_maintenance_logs(mach_df, selected_mach):
             else: st.warning("내용을 입력하고 부품을 선택하세요.")
     with log_col2: display_maintenance_logs(selected_mach)
 
+# ======================================================================
+# 탭 3: AI 카메라
+# ======================================================================
 def render_tab_vision(selected_mach):
     if not is_authenticated(): return
     st.markdown(f"<div class='menu-hero-banner'><h3>📸 AI 비전 진단</h3></div>", unsafe_allow_html=True)
@@ -508,6 +511,9 @@ def render_tab_vision(selected_mach):
                 st.write(resp.text)
             except Exception as e: st.error(f"오류가 발생했습니다: {e}")
 
+# ======================================================================
+# 탭 4: AI 챗봇
+# ======================================================================
 def render_tab_chat(selected_mach):
     if not is_authenticated(): return
     st.markdown(f"<div class='menu-hero-banner'><h3>💬 정비 AI 챗봇</h3></div>", unsafe_allow_html=True)
@@ -535,6 +541,9 @@ def render_tab_chat(selected_mach):
                     st.session_state.chat_history.append({"role": "assistant", "content": bot_reply.text})
                 except Exception as e: st.error(f"오류가 발생했습니다: {e}")
 
+# ======================================================================
+# 탭 5: 신규 부품 등록
+# ======================================================================
 def render_tab_register_part(selected_mach):
     if not is_authenticated(): return
     worker_name = get_worker_name()
@@ -617,7 +626,6 @@ def render_dashboard(all_parts_df):
 
         st.markdown("---")
         
-        # 버튼 토글 로직: 이미 호출된 상태면 '호출 해제' 버튼, 아니면 '호출' 버튼 표시
         if is_requested:
             if st.button("✅ 정비 완료 (시설팀 호출 해제)", type="primary", use_container_width=True):
                 worker_name = get_worker_name()
@@ -660,6 +668,8 @@ def main():
     init_session_state()
     encoded_bg = get_base64_encoded_image("정관장 이미지.jpg")
     encoded_logo = get_base64_encoded_image("kgc_logo.png.png")
+    
+    # 여기서 모든 화면 하단 여백 추가 CSS가 적용됩니다.
     render_global_css(encoded_logo)
     
     if not is_authenticated():
