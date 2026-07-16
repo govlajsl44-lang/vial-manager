@@ -211,14 +211,15 @@ def render_main_css(encoded_bg):
         .section-title {{ background-color: #E0F2FE; color: #0369A1; padding: 6px 12px; border-radius: 4px; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: inline-block; }}
         .menu-hero-banner {{ background: linear-gradient(135deg, #007BEC 0%, #0059B2 100%); color: #FFFFFF !important; padding: 1rem !important; border-radius: 8px !important; margin-bottom: 15px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important; }}
         
-        /* 통합 관제 센터 빨간불 깜빡임 애니메이션 추가 */
-        @keyframes alert-pulse {
-            0% { box-shadow: 0 0 0 0 rgba(217, 48, 37, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(217, 48, 37, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(217, 48, 37, 0); }
-        }
+        /* 통합 관제 센터 빨간불 깜빡임 애니메이션 추가 (중괄호 수정 완료) */
+        @keyframes alert-pulse {{
+            0% {{ box-shadow: 0 0 0 0 rgba(217, 48, 37, 0.7); }}
+            70% {{ box-shadow: 0 0 0 15px rgba(217, 48, 37, 0); }}
+            100% {{ box-shadow: 0 0 0 0 rgba(217, 48, 37, 0); }}
+        }}
         </style>
         """, unsafe_allow_html=True
+    )
     )
 
 def render_login_screen():
