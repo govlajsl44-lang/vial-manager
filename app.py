@@ -19,7 +19,7 @@ SP_ID = "id"
 SP_MACHINE = "machine_name"
 SP_PART = "part_name"
 SP_SPEC = "spec"
-SP_LIFE_M = "life_m"  # 월 단위 수명만 사용 (life_h 에러 해결 완료)
+SP_LIFE_M = "life_m"  
 SP_MANUAL = "manual_url"
 SP_STOCK = "stock"
 
@@ -47,9 +47,6 @@ def load_machines():
     except Exception:
         return pd.DataFrame()
 
-# ======================================================================
-# Supabase Auth
-# ======================================================================
 def is_authenticated():
     return st.session_state.get("user") is not None
 
@@ -117,7 +114,6 @@ def load_spare_parts():
         df = pd.DataFrame(response.data)
         if df.empty:
             return df
-        # 문제가 되었던 life_h 관련 코드는 완전히 제거되었습니다.
         for col in (SP_STOCK, SP_LIFE_M):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
@@ -137,7 +133,7 @@ def load_maintenance_logs(machine_name=None):
         query = init_supabase().table(TABLE_MAINTENANCE_LOGS).select("*")
         if machine_name:
             query = query.eq(ML_MACHINE, machine_name)
-        response = query.order(ML_DATE, desc=True).execute()
+        response = query.order(ML_DATE, desc=True).order("id", desc=True).execute() # 가장 최근 기록을 정확히 불러옴
         return pd.DataFrame(response.data)
     except Exception:
         return pd.DataFrame()
@@ -214,6 +210,13 @@ def render_main_css(encoded_bg):
         div[data-testid="stContainer"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; padding: 1.2rem !important; border-radius: 8px !important; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05) !important; margin-bottom: 15px !important; }}
         .section-title {{ background-color: #E0F2FE; color: #0369A1; padding: 6px 12px; border-radius: 4px; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: inline-block; }}
         .menu-hero-banner {{ background: linear-gradient(135deg, #007BEC 0%, #0059B2 100%); color: #FFFFFF !important; padding: 1rem !important; border-radius: 8px !important; margin-bottom: 15px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important; }}
+        
+        /* 통합 관제 센터 빨간불 깜빡임 애니메이션 추가 */
+        @keyframes alert-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(217, 48, 37, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(217, 48, 37, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(217, 48, 37, 0); }
+        }
         </style>
         """, unsafe_allow_html=True
     )
@@ -226,7 +229,6 @@ def render_login_screen():
         tab_login, tab_register = st.tabs(["로그인", "회원가입"])
         
         with tab_login:
-            # key를 추가하여 중복 방지
             login_email = st.text_input("이메일", key="login_email_input")
             login_pw = st.text_input("비밀번호", type="password", key="login_pw_input")
             if st.button("로그인", type="primary", use_container_width=True):
@@ -239,7 +241,6 @@ def render_login_screen():
                         st.error(f"❌ 로그인 실패: {err}")
                         
         with tab_register:
-            # key를 추가하여 중복 방지
             reg_email = st.text_input("가입 이메일", key="reg_email_input")
             reg_name = st.text_input("이름", key="reg_name_input")
             reg_pw = st.text_input("비밀번호", type="password", key="reg_pw_input")
@@ -253,12 +254,99 @@ def render_login_screen():
                         
         st.markdown("</div>", unsafe_allow_html=True)
 
+# ======================================================================
+# 시설에너지관리팀 전용 통합 관제 센터 화면
+# ======================================================================
+def render_manager_dashboard(all_parts_df):
+    if not is_authenticated(): return require_login_message()
+
+    nav_col1, nav_col2 = st.columns([8, 2])
+    with nav_col2:
+        if st.button("⬅️ 라우팅 화면으로", use_container_width=True):
+            st.session_state.auth_step = "setup_gate"
+            st.rerun()
+
+    st.markdown("<div class='menu-hero-banner' style='background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);'><h2>🛠️ 시설에너지관리팀 통합 관제 센터</h2><p>모든 기계의 실시간 상태를 확인하고, 정비 요청이 들어온 기계를 즉각 조치합니다.</p></div>", unsafe_allow_html=True)
+
+    df_machines = load_machines()
+    if df_machines.empty:
+        st.error("데이터베이스에 등록된 기계가 없습니다.")
+        return
+
+    # 정비 일지 전체를 로드해서 호출 상태를 확인합니다.
+    all_logs_df = load_maintenance_logs()
+
+    # 상태 판별 로직: 1. 긴급 정비 요청 확인 -> 2. 부품 재고 부족 확인
+    def get_machine_status(mach_name):
+        # 1. 사용자가 직접 '정비 요청' 버튼을 눌렀는지 일지에서 확인
+        if all_logs_df is not None and not all_logs_df.empty:
+            m_logs = all_logs_df[all_logs_df[ML_MACHINE] == mach_name]
+            if not m_logs.empty:
+                latest_log = m_logs.iloc[0] # 가장 최근 기록
+                if "[정비 요청]" in str(latest_log[ML_CONTENT]):
+                    return "🚨 시설팀 호출됨", "#FEF2F2", "#DC2626", "border: 2px solid #DC2626; animation: alert-pulse 1.5s infinite;"
+
+        # 2. 부품 재고가 2개 이하인지 자동 감지
+        if all_parts_df is not None and not all_parts_df.empty: 
+            m_parts = all_parts_df[all_parts_df[SP_MACHINE] == mach_name]
+            if not m_parts.empty:
+                urgent_parts = m_parts[m_parts[SP_STOCK] <= 2]
+                if not urgent_parts.empty:
+                    return "⚠️ 부품 재고 부족", "#FFFBEB", "#B45309", "border: 2px solid #F59E0B;"
+        
+        return "🟢 정상 가동", "#F8FAFC", "#0F172A", "border: 1px solid #E2E8F0;"
+
+    # 부서(팀)별로 그룹화
+    departments = sorted(df_machines["dept"].dropna().unique())
+
+    for dept in departments:
+        st.markdown(f"<h2 style='margin-top: 40px; border-bottom: 3px solid #1e3c72; padding-bottom: 10px; color: #1e3c72;'>🏢 {dept}</h2>", unsafe_allow_html=True)
+        dept_machines = df_machines[df_machines["dept"] == dept]
+        
+        lines = sorted(dept_machines["line"].dropna().unique())
+        for line in lines:
+            st.markdown(f"<h4 style='color: #475569; margin-top:20px; margin-bottom:15px;'>📍 라인: {line}</h4>", unsafe_allow_html=True)
+            line_machines = dept_machines[dept_machines["line"] == line]
+            
+            # 한 줄에 4개의 기계 카드를 배치
+            cols = st.columns(4)
+            for i, (_, row) in enumerate(line_machines.iterrows()):
+                mach_name = row["machine_name"]
+                status_text, bg_color, text_color, border_style = get_machine_status(mach_name)
+                
+                with cols[i % 4]:
+                    card_html = f"""
+                    <div style="background-color: {bg_color}; {border_style} border-radius: 10px; padding: 20px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <h4 style="margin: 0; color: #1E293B; font-size: 1.2rem; font-weight: 800;">{mach_name}</h4>
+                        <div style="margin: 15px 0 0 0; padding: 8px; border-radius: 5px; background-color: rgba(255,255,255,0.8); font-weight: bold; color: {text_color}; font-size: 1.1rem;">
+                            {status_text}
+                        </div>
+                    </div>
+                    """
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    
+                    if st.button(f"🔍 {mach_name} 출동/보기", key=f"mgr_btn_{mach_name}_{i}", use_container_width=True):
+                        st.session_state.user_team = f"시설에너지관리팀 ({dept})"
+                        st.session_state.user_machine = mach_name
+                        st.session_state.auth_step = "main_app"
+                        st.rerun()
+
 def render_setup_screen():
     if not is_authenticated(): return require_login_message()
     col1, col2, col3 = st.columns([0.5, 3, 0.5])
     with col2:
         st.markdown('<div class="styled-card" style="padding: 40px !important;">', unsafe_allow_html=True)
-        st.markdown("<h3 style='text-align:center; color: white; margin-bottom: 30px;'>🏭 스마트 공정 및 라인 라우팅 설정</h3>", unsafe_allow_html=True)
+        
+        st.markdown("<h3 style='text-align:center; color: #ffb7b2; margin-bottom: 15px;'>👨‍🔧 시설에너지관리팀 (정비팀)</h3>", unsafe_allow_html=True)
+        col_m1, col_m2, col_m3 = st.columns([1,2,1])
+        with col_m2:
+            if st.button("🚨 통합 관제 센터 입장", type="primary", use_container_width=True):
+                st.session_state.auth_step = "manager_dashboard"
+                st.rerun()
+                
+        st.markdown("<hr style='border-color: #555; margin: 30px 0;'>", unsafe_allow_html=True)
+        
+        st.markdown("<h3 style='text-align:center; color: white; margin-bottom: 30px;'>🏭 개별 스마트 공정 라우팅 (작업자용)</h3>", unsafe_allow_html=True)
 
         user = st.session_state["user"]
         st.write(f"✅ **접속자:** `{user['display_name']} ({user['email']})`")
@@ -310,7 +398,7 @@ def render_setup_screen():
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================================
-# 탭 1: 부품 상태 및 신품 교체
+# 탭 1 ~ 5 (기존 기능 유지)
 # ======================================================================
 def render_tab_parts(mach_df, selected_mach):
     if not is_authenticated(): return
@@ -329,7 +417,6 @@ def render_tab_parts(mach_df, selected_mach):
         part_info = mach_df[mach_df[SP_PART] == selected_part].iloc[0]
         part_id = part_info.get(SP_ID)
 
-        # 유지보수 일지를 조회하여 '최근 교체일' 검색
         logs_df = load_maintenance_logs(selected_mach)
         recent_replace_date = "기록 없음"
         if not logs_df.empty:
@@ -377,9 +464,6 @@ def render_tab_parts(mach_df, selected_mach):
         with q_col1: st.image(qr_api_url, caption="정비 태그 QR")
         with q_col2: st.code(qr_link)
 
-# ======================================================================
-# 탭 2: 정비 일지
-# ======================================================================
 def render_tab_maintenance_logs(mach_df, selected_mach):
     if not is_authenticated(): return
     worker_name = get_worker_name()
@@ -400,90 +484,60 @@ def render_tab_maintenance_logs(mach_df, selected_mach):
             else: st.warning("내용을 입력하고 부품을 선택하세요.")
     with log_col2: display_maintenance_logs(selected_mach)
 
-# ======================================================================
-# 탭 3: AI 카메라 (내장형 복구)
-# ======================================================================
 def render_tab_vision(selected_mach):
     if not is_authenticated(): return
     st.markdown(f"<div class='menu-hero-banner'><h3>📸 AI 비전 진단</h3></div>", unsafe_allow_html=True)
-    
-    # Secrets에 저장된 API 키를 자동으로 불러옵니다. (작업자에게 묻지 않음)
-    try:
-        vision_api_key = st.secrets["GEMINI_API_KEY"]
+    try: vision_api_key = st.secrets["GEMINI_API_KEY"]
     except KeyError:
         st.error("🚨 서버에 GEMINI_API_KEY가 설정되지 않았습니다. 관리자에게 문의하세요.")
         return
-
     input_mode = st.radio("사진 획득 방법", ["카메라 촬영", "파일 업로드"])
     captured_file = st.camera_input("카메라") if input_mode == "카메라 촬영" else st.file_uploader("사진 선택", type=['jpg', 'jpeg', 'png'])
-    
     if captured_file and st.button("🚀 AI 비전 해독 시작", type="primary"):
         with st.spinner("이미지 분석 중입니다..."):
             try:
                 import google.generativeai as genai
                 from PIL import Image
                 genai.configure(api_key=vision_api_key)
-                vision_model = genai.GenerativeModel("gemini-1.5-flash") # 최신 안정화 버전
-                
+                vision_model = genai.GenerativeModel("gemini-1.5-flash") 
                 img = Image.open(captured_file)
                 prompt = f"이 사진은 [{selected_mach}] 기계의 부품 또는 상태를 찍은 것입니다. 현재 상태를 진단하고 혹시 파손, 마모, 이상 증상이 있는지 한국어로 전문적으로 설명해주세요."
-                
                 resp = vision_model.generate_content([prompt, img])
                 st.success("✅ AI 진단 완료")
                 st.write(resp.text)
-            except Exception as e: 
-                st.error(f"오류가 발생했습니다: {e}")
+            except Exception as e: st.error(f"오류가 발생했습니다: {e}")
 
-# ======================================================================
-# 탭 4: AI 챗봇 (내장형 복구)
-# ======================================================================
 def render_tab_chat(selected_mach):
     if not is_authenticated(): return
     st.markdown(f"<div class='menu-hero-banner'><h3>💬 정비 AI 챗봇</h3></div>", unsafe_allow_html=True)
-
-    # Secrets에 저장된 API 키 자동 연동
-    try:
-        chat_api_key = st.secrets["GEMINI_API_KEY"]
+    try: chat_api_key = st.secrets["GEMINI_API_KEY"]
     except KeyError:
         st.error("🚨 서버에 GEMINI_API_KEY가 설정되지 않았습니다. 관리자에게 문의하세요.")
         return
-
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [{"role": "assistant", "content": f"안녕하세요! [{selected_mach}] 전담 정비 어시스턴트입니다. 무엇을 도와드릴까요?"}]
-
     for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]): 
-            st.write(msg["content"])
-
+        with st.chat_message(msg["role"]): st.write(msg["content"])
     if user_prompt := st.chat_input("정비 관련 질문을 입력하세요"):
         st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-        with st.chat_message("user"): 
-            st.write(user_prompt)
-        
+        with st.chat_message("user"): st.write(user_prompt)
         with st.chat_message("assistant"):
             with st.spinner("AI가 답변을 작성 중입니다..."):
                 try:
                     import google.generativeai as genai
                     genai.configure(api_key=chat_api_key)
                     chat_model = genai.GenerativeModel("gemini-1.5-flash")
-                    
-                    history_text = "\\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.chat_history[:-1]])
-                    system_prompt = f"너는 공장 설비 [{selected_mach}] 전문 엔지니어이자 정비 도우미야. 작업자의 질문에 친절하고 전문적으로 한국어로 대답해줘.\\n\\n이전 대화:\\n{history_text}\\n\\n사용자: {user_prompt}"
-                    
+                    history_text = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.chat_history[:-1]])
+                    system_prompt = f"너는 공장 설비 [{selected_mach}] 전문 엔지니어이자 정비 도우미야. 작업자의 질문에 친절하고 전문적으로 한국어로 대답해줘.\n\n이전 대화:\n{history_text}\n\n사용자: {user_prompt}"
                     bot_reply = chat_model.generate_content(system_prompt)
                     st.write(bot_reply.text)
                     st.session_state.chat_history.append({"role": "assistant", "content": bot_reply.text})
-                except Exception as e: 
-                    st.error(f"오류가 발생했습니다: {e}")
+                except Exception as e: st.error(f"오류가 발생했습니다: {e}")
 
-# ======================================================================
-# 탭 5: 신규 부품 등록 (life_h 에러 수정 완료)
-# ======================================================================
 def render_tab_register_part(selected_mach):
     if not is_authenticated(): return
     worker_name = get_worker_name()
     st.markdown(f"<div class='menu-hero-banner'><h3>📥 [{selected_mach}] 신규 부품 등록</h3></div>", unsafe_allow_html=True)
-
     reg_col1, reg_col2 = st.columns([1, 1.2], gap="medium")
     with reg_col1:
         reg_name = st.text_input("부품명 (part_name)")
@@ -493,7 +547,6 @@ def render_tab_register_part(selected_mach):
         reg_stock = st.number_input("초기 재고 (EA)", min_value=0, value=1)
         if st.button("📥 신규 부품 등록", type="primary", use_container_width=True):
             if reg_name.strip():
-                # 문제가 되었던 SP_LIFE_H: 0 코드를 완전히 삭제했습니다!
                 new_record = {
                     SP_MACHINE: selected_mach, 
                     SP_PART: reg_name.strip(), 
@@ -512,7 +565,7 @@ def render_tab_register_part(selected_mach):
                     else: st.error(f"❌ 데이터베이스 오류: {err}")
 
 # ======================================================================
-# 메인 대시보드
+# 메인 대시보드 (작업자 화면)
 # ======================================================================
 def render_dashboard(all_parts_df):
     if not is_authenticated(): return
@@ -523,8 +576,11 @@ def render_dashboard(all_parts_df):
     nav_col1, nav_col2, nav_col3 = st.columns([6, 2, 2])
     with nav_col1: st.caption(f"🔧 작업자: {user['display_name']} | 기기: {selected_mach}")
     with nav_col2:
-        if st.button("🔒 라우팅 재설정", use_container_width=True):
-            st.session_state.auth_step = "setup_gate"
+        if st.button("🔒 상위 메뉴로 이동", use_container_width=True):
+            if "시설에너지관리팀" in st.session_state.user_team:
+                st.session_state.auth_step = "manager_dashboard"
+            else:
+                st.session_state.auth_step = "setup_gate"
             st.rerun()
     with nav_col3:
         if st.button("🚪 로그아웃", use_container_width=True):
@@ -537,6 +593,14 @@ def render_dashboard(all_parts_df):
     mach_info_row = df_machines[df_machines["machine_name"] == selected_mach]
     machine_img_url = mach_info_row.iloc[0].get("machine_image_url") if not mach_info_row.empty else None
 
+    # 최근 정비 일지를 가져와서 현재 "정비 요청" 상태인지 확인
+    all_logs_df = load_maintenance_logs(selected_mach)
+    is_requested = False
+    if not all_logs_df.empty:
+        latest_log = all_logs_df.iloc[0]
+        if "[정비 요청]" in str(latest_log[ML_CONTENT]):
+            is_requested = True
+
     img_col, metric_col = st.columns([1, 2], gap="large")
     with img_col:
         if pd.notna(machine_img_url) and str(machine_img_url).strip().startswith("http"):
@@ -545,12 +609,44 @@ def render_dashboard(all_parts_df):
     with metric_col:
         st.markdown(f"**관리번호:** `MGT-2026-001` | **제조사:** `(주)이수이엔지`")
         
-        # 재고가 2개 이하인 부품을 위험 상태로 표시
         urgent_count = len(mach_df[mach_df[SP_STOCK] <= 2]) if not mach_df.empty else 0
-        
         m1, m2 = st.columns(2)
-        m1.metric("현재 작동 상태", "🟢 정상 가동")
-        m2.metric("위험 소모품 (재고 부족)", f"{urgent_count} 건", delta="-조치 요망", delta_color="inverse")
+        m1.metric("현재 작동 상태", "🚨 시설팀 호출 중" if is_requested else "🟢 정상 가동")
+        m2.metric("위험 소모품 (재고 부족)", f"{urgent_count} 건", delta="-조치 요망" if urgent_count > 0 else "", delta_color="inverse")
+
+        st.markdown("---")
+        
+        # 버튼 토글 로직: 이미 호출된 상태면 '호출 해제' 버튼, 아니면 '호출' 버튼 표시
+        if is_requested:
+            if st.button("✅ 정비 완료 (시설팀 호출 해제)", type="primary", use_container_width=True):
+                worker_name = get_worker_name()
+                ok, err = insert_maintenance_log({
+                    ML_DATE: datetime.date.today().strftime("%Y-%m-%d"), 
+                    ML_MACHINE: selected_mach, 
+                    ML_PART: "기기 전체", 
+                    ML_WORKER: worker_name, 
+                    ML_CONTENT: "[조치 완료] 시설팀 정비가 완료되어 호출을 해제합니다."
+                })
+                if ok:
+                    st.toast("✅ 정상 가동 상태로 복귀했습니다.", icon="✅")
+                    time.sleep(1)
+                    st.cache_data.clear()
+                    st.rerun()
+        else:
+            if st.button("🚨 시설에너지관리팀 긴급 호출 (정비 요청)", type="primary", use_container_width=True):
+                worker_name = get_worker_name()
+                ok, err = insert_maintenance_log({
+                    ML_DATE: datetime.date.today().strftime("%Y-%m-%d"), 
+                    ML_MACHINE: selected_mach, 
+                    ML_PART: "기기 전체", 
+                    ML_WORKER: worker_name, 
+                    ML_CONTENT: "[정비 요청] 현장 작업자가 긴급 정비를 요청했습니다."
+                })
+                if ok:
+                    st.toast("🚨 관리팀으로 출동 요청이 전송되었습니다!", icon="🚨")
+                    time.sleep(1)
+                    st.cache_data.clear()
+                    st.rerun()
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 1. 자산 관제 및 교체", "📝 2. 정비 일지 기록", "📸 3. AI 진단", "💬 4. AI 챗봇", "📥 5. 신규 등록"])
     with tab1: render_tab_parts(mach_df, selected_mach)
@@ -562,17 +658,24 @@ def render_dashboard(all_parts_df):
 def main():
     init_session_state()
     encoded_bg = get_base64_encoded_image("정관장 이미지.jpg")
-    encoded_logo = get_base64_encoded_image("kgc_logo.png")
+    encoded_logo = get_base64_encoded_image("kgc_logo.png.png")
     render_global_css(encoded_logo)
+    
     if not is_authenticated():
         st.session_state.auth_step = "login_gate"
         render_login_css(encoded_bg, encoded_logo)
         render_login_screen()
         return
+        
     render_main_css(encoded_bg)
     all_parts_df = load_spare_parts()
-    if st.session_state.auth_step == "setup_gate": render_setup_screen()
-    elif st.session_state.auth_step == "main_app": render_dashboard(all_parts_df)
+    
+    if st.session_state.auth_step == "setup_gate": 
+        render_setup_screen()
+    elif st.session_state.auth_step == "manager_dashboard":
+        render_manager_dashboard(all_parts_df)
+    elif st.session_state.auth_step == "main_app": 
+        render_dashboard(all_parts_df)
     else:
         st.session_state.auth_step = "setup_gate"
         render_setup_screen()
