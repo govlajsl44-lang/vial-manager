@@ -48,18 +48,23 @@ def load_machines():
         return pd.DataFrame()
 
 # ======================================================================
-# 권한 및 인증 (관리자 확인 로직 추가)
+# 권한 및 인증 (시설에너지관리팀 확인 로직 완벽 적용)
 # ======================================================================
 def is_authenticated():
     return st.session_state.get("user") is not None
 
 def is_manager():
-    """로그인한 유저가 관리자인지 확인 (이메일에 admin, manager, facility 포함 시 관리자로 인식)"""
+    """로그인한 유저가 '시설에너지관리팀' 소속인지 확인"""
     user = st.session_state.get("user")
     if not user:
         return False
+    # 회원가입 시 선택한 소속팀 검사
+    team = user.get("team", "")
+    if team == "시설에너지관리팀":
+        return True
+    # 예비용 최고관리자 계정 검사
     email = user.get("email", "").lower()
-    return "admin" in email or "manager" in email or "facility" in email
+    return "admin" in email
 
 def store_auth_user(response):
     user = response.user
@@ -70,6 +75,8 @@ def store_auth_user(response):
         "id": user.id,
         "email": user.email,
         "display_name": metadata.get("display_name") or (user.email or "").split("@")[0],
+        "factory": metadata.get("factory", ""),
+        "team": metadata.get("team", "")
     }
     return True
 
@@ -80,11 +87,19 @@ def auth_sign_in(email, password):
     except Exception as exc:
         return False, None, str(exc)
 
-def auth_sign_up(email, password, display_name=None):
+def auth_sign_up(email, password, name, factory, team):
     try:
-        payload = {"email": email, "password": password}
-        if display_name:
-            payload["options"] = {"data": {"display_name": display_name}}
+        payload = {
+            "email": email, 
+            "password": password,
+            "options": {
+                "data": {
+                    "display_name": name,
+                    "factory": factory,
+                    "team": team
+                }
+            }
+        }
         response = init_supabase().auth.sign_up(payload)
         return True, response, None
     except Exception as exc:
@@ -105,8 +120,11 @@ def get_worker_name():
     if not user:
         return "미인증 사용자"
     name = user.get("display_name") or user.get("email", "")
-    team = st.session_state.get("user_team")
-    return f"{team} / {name}" if team else name
+    factory = user.get("factory", "")
+    team = user.get("team", "")
+    if factory and team:
+        return f"[{factory}] {team} / {name}"
+    return name
 
 def require_login_message():
     st.warning("🔒 로그인이 필요합니다. 로그인 후 이용해 주세요.")
@@ -168,7 +186,7 @@ def get_machine_parts_df(all_parts_df, machine_name):
     return all_parts_df[all_parts_df[SP_MACHINE] == machine_name].copy()
 
 # ======================================================================
-# UI 유틸리티
+# UI 유틸리티 (노션 스타일 깔끔한 디자인 적용)
 # ======================================================================
 def get_base64_encoded_image(image_path):
     if os.path.exists(image_path):
@@ -182,59 +200,40 @@ def init_session_state():
         if key not in st.session_state:
             st.session_state[key] = value
 
-def render_global_css(encoded_logo):
+def render_global_css():
     st.markdown(
         f"""
         <style>
-        .block-container {{ padding-bottom: 15rem !important; }}
-        @keyframes corporate-ripple {{ 0% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0.6); }} 70% {{ box-shadow: 0 0 0 30px rgba(0, 123, 236, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(0, 123, 236, 0); }} }}
-        @keyframes corporate-beat {{ 0% {{ transform: scale(0.95); }} 50% {{ transform: scale(1.02); }} 100% {{ transform: scale(0.95); }} }}
-        @keyframes fade-in-up {{ 0% {{ opacity: 0; transform: translateY(20px); }} 100% {{ opacity: 1; transform: translateY(0); }} }}
-        
-        div[data-testid="stSpinner"] {{ position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.7) !important; backdrop-filter: blur(4px); z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; }}
-        div[data-testid="stSpinner"] > div > svg {{ display: none !important; }}
-        div[data-testid="stSpinner"] > div {{ color: white !important; font-size: 1.1rem !important; font-weight: bold !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 30px !important; }}
-        div[data-testid="stSpinner"] > div::before {{ content: ""; display: block; width: 110px; height: 110px; background-color: #ffffff; border-radius: 50%; background-image: url("{encoded_logo}"); background-repeat: no-repeat; background-position: center; background-size: 70%; animation: corporate-beat 1.5s infinite ease-in-out, corporate-ripple 1.5s infinite; }}
-        
-        /* 고급스러운 카드 스타일링 강화 */
-        .styled-card {{ 
-            background-color: rgba(255, 255, 255, 0.95) !important; 
-            border-radius: 16px !important; 
-            padding: 40px !important; 
-            color: #1E293B !important; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08) !important; 
-            border: 1px solid rgba(0,0,0,0.05);
-            animation: fade-in-up 0.6s ease-out forwards;
-        }}
-        </style>
-        """, unsafe_allow_html=True
-    )
-
-def render_login_css(encoded_bg, encoded_logo):
-    st.markdown(
-        f"""
-        <style>
-        header[data-testid="stHeader"], div[data-testid="stToolbar"] {{ visibility: hidden !important; height: 0px !important; }}
-        div[data-testid="stAppViewContainer"] {{ background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), url('{encoded_bg}') !important; background-size: cover !important; background-position: center !important; background-attachment: fixed !important; }}
-        .main {{ background: transparent !important; }}
-        </style>
-        """, unsafe_allow_html=True
-    )
-
-def render_main_css(encoded_bg):
-    st.markdown(
-        f"""
-        <style>
+        /* 기본 배경 화이트 처리 및 불필요한 Streamlit 여백 제거 */
+        div[data-testid="stAppViewContainer"] {{ background-color: #FFFFFF !important; }}
         header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
-        div[data-testid="stAppViewContainer"] {{ background: #F8FAFC !important; }} /* 메인 화면은 깨끗하고 밝은 배경 */
-        .block-container {{ padding-top: 1rem !important; max-width: 96% !important; }}
-        h1 {{ color: #0F172A !important; font-weight: 800 !important; font-size: 1.8rem !important; border-bottom: 3px solid #007BEC; padding-bottom: 8px; margin-bottom: 15px !important; }}
-        div[data-testid="stMetric"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-top: 4px solid #007BEC !important; padding: 0.8rem !important; border-radius: 12px !important; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05) !important; margin-bottom: 8px !important; }}
+        .block-container {{ padding-top: 0rem !important; padding-bottom: 15rem !important; max-width: 1100px !important; }}
         
-        /* 통합 관제 센터 빨간불 깜빡임 애니메이션 */
+        /* 글씨 가독성 개선 (다크 컬러) */
+        h1, h2, h3, h4, p, span, label, div {{ color: #1E293B !important; font-family: 'Pretendard', sans-serif; }}
+        
+        /* 노션 스타일의 플랫하고 부드러운 카드 디자인 */
+        .styled-card {{ 
+            background-color: #F8F9FA !important; 
+            border: 1px solid #E9ECEF !important; 
+            border-radius: 12px !important; 
+            padding: 40px !important; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01) !important; 
+            margin-bottom: 30px;
+        }}
+        
+        .styled-card h2, .styled-card h3, .styled-card h4 {{ color: #343A40 !important; }}
+        
+        /* Metric 카드 등 기본 컨테이너 디자인 통일 */
+        div[data-testid="stMetric"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-top: 4px solid #6B8E7B !important; padding: 0.8rem !important; border-radius: 12px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; margin-bottom: 8px !important; }}
+        
+        /* 버튼 컬러 부드러운 톤 매너 적용 */
+        div[data-testid="stButton"] button {{ border-radius: 8px !important; font-weight: bold; }}
+        
+        /* 통합 관제 센터 빨간불 깜빡임 애니메이션 (테두리만 부드럽게) */
         @keyframes alert-pulse {{
-            0% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }}
-            70% {{ box-shadow: 0 0 0 15px rgba(220, 38, 38, 0); }}
+            0% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }}
+            70% {{ box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }}
             100% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }}
         }}
         </style>
@@ -242,19 +241,19 @@ def render_main_css(encoded_bg):
     )
 
 def render_hero_banner():
-    """상단 MRO 프로젝트 타이틀 이미지 렌더링 (스크롤 시 사라지는 구조)"""
+    """스크롤을 내리면 자연스럽게 사라지는 상단 고정 헤더 이미지"""
     hero_b64 = get_base64_encoded_image("KGC Smart MRO.png")
     if hero_b64:
         st.markdown(
             f"""
-            <div style="width: 100%; display: flex; justify-content: center; margin-bottom: 2rem; padding-top: 2rem; animation: fade-in-up 0.8s ease-out;">
-                <img src="{hero_b64}" style="max-width: 600px; width: 90%; object-fit: contain; drop-shadow(0px 10px 15px rgba(0,0,0,0.1));">
+            <div style="width: 100%; display: flex; justify-content: center; align-items: center; padding: 3rem 1rem; margin-bottom: 2rem; background-color: #6B8E7B; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                <img src="{hero_b64}" style="max-height: 80px; width: auto; object-fit: contain;">
             </div>
             """, unsafe_allow_html=True
         )
 
 # ======================================================================
-# 로그인 화면
+# 로그인 & 회원가입 화면
 # ======================================================================
 def render_login_screen():
     render_hero_banner()
@@ -262,14 +261,14 @@ def render_login_screen():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.markdown('<div class="styled-card">', unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align:center; color:#0F172A; font-weight: 800; margin-bottom: 20px;'>시스템 로그인</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center; font-weight: 800; margin-bottom: 20px;'>환영합니다</h2>", unsafe_allow_html=True)
         tab_login, tab_register = st.tabs(["로그인", "회원가입"])
         
         with tab_login:
             login_email = st.text_input("이메일", key="login_email_input", placeholder="user@kgc.com")
             login_pw = st.text_input("비밀번호", type="password", key="login_pw_input")
             if st.button("로그인", type="primary", use_container_width=True):
-                with st.spinner("인증 처리 중..."):
+                with st.spinner("로그인 중..."):
                     ok, response, err = auth_sign_in(login_email.strip(), login_pw)
                     if ok and store_auth_user(response):
                         st.session_state.auth_step = "setup_gate"
@@ -279,15 +278,33 @@ def render_login_screen():
                         
         with tab_register:
             reg_email = st.text_input("가입 이메일", key="reg_email_input")
-            reg_name = st.text_input("이름 (부서/성명)", key="reg_name_input")
             reg_pw = st.text_input("비밀번호", type="password", key="reg_pw_input")
-            if st.button("회원가입", use_container_width=True):
-                with st.spinner("회원가입 중..."):
-                    ok, response, err = auth_sign_up(reg_email.strip(), reg_pw, reg_name.strip() or None)
-                    if ok:
-                        st.success("✅ 회원가입 완료! 로그인 탭에서 접속해주세요.")
-                    else: 
-                        st.error(f"❌ 실패: {err}")
+            
+            st.markdown("---")
+            st.markdown("#### 개인 및 소속 정보")
+            reg_name = st.text_input("성명", key="reg_name_input", placeholder="홍길동")
+            
+            # 공장 및 팀 세분화 로직
+            reg_factory = st.selectbox("소속 공장", ["선택해주세요", "부여공장", "원주공장"])
+            
+            reg_team = "선택해주세요"
+            if reg_factory == "부여공장":
+                reg_team = st.selectbox("소속 팀", ["선택해주세요", "제품1팀", "제품2팀", "시설에너지관리팀", "공정개선팀", "지원팀", "산업안전 보건팀"])
+            elif reg_factory == "원주공장":
+                reg_team = st.selectbox("소속 팀", ["선택해주세요", "생산팀", "시설에너지관리팀", "지원팀"])
+            else:
+                st.info("👆 공장을 먼저 선택하시면 팀 목록이 표시됩니다.")
+
+            if st.button("회원가입 완료", use_container_width=True):
+                if reg_factory == "선택해주세요" or reg_team == "선택해주세요" or not reg_name.strip():
+                    st.warning("⚠️ 성명, 소속 공장 및 팀을 모두 선택해주세요.")
+                else:
+                    with st.spinner("가입 처리 중..."):
+                        ok, response, err = auth_sign_up(reg_email.strip(), reg_pw, reg_name.strip(), reg_factory, reg_team)
+                        if ok:
+                            st.success("✅ 회원가입 완료! 로그인 탭에서 접속해주세요.")
+                        else: 
+                            st.error(f"❌ 가입 실패: {err}")
                         
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -299,11 +316,11 @@ def render_manager_dashboard(all_parts_df):
 
     nav_col1, nav_col2 = st.columns([8, 2])
     with nav_col2:
-        if st.button("⬅️ 작업 라우팅으로 돌아가기", use_container_width=True):
+        if st.button("⬅️ 작업 라우팅 화면으로", use_container_width=True):
             st.session_state.auth_step = "setup_gate"
             st.rerun()
 
-    st.markdown("<div style='background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 25px; border-radius: 16px; color: white; margin-bottom: 30px; box-shadow: 0 10px 20px rgba(0,0,0,0.1);'><h2 style='margin:0; border:none; padding:0; color:white;'>🛠️ 시설에너지관리팀 통합 관제 센터</h2><p style='margin-top:10px; opacity: 0.9;'>전체 설비의 실시간 상태를 모니터링하고 정비 요청에 즉각 대응합니다.</p></div>", unsafe_allow_html=True)
+    st.markdown("<div style='background-color: #F1F5F9; padding: 25px; border-radius: 12px; border-left: 6px solid #6B8E7B; margin-bottom: 30px;'><h2 style='margin:0; padding:0; color:#334155;'>🛠️ 시설에너지관리팀 통합 관제 센터</h2><p style='margin-top:8px; color:#64748B;'>전체 설비의 실시간 상태를 모니터링하고 정비 요청에 즉각 대응합니다.</p></div>", unsafe_allow_html=True)
 
     df_machines = load_machines()
     if df_machines.empty:
@@ -318,26 +335,26 @@ def render_manager_dashboard(all_parts_df):
             if not m_logs.empty:
                 latest_log = m_logs.iloc[0]
                 if "[정비 요청]" in str(latest_log[ML_CONTENT]):
-                    return "🚨 긴급 정비 요청됨", "#FEF2F2", "#DC2626", "border: 2px solid #DC2626; animation: alert-pulse 1.5s infinite;"
+                    return "🚨 긴급 정비 요청됨", "#FEF2F2", "#DC2626", "border: 1px solid #FCA5A5; animation: alert-pulse 1.5s infinite;"
 
         if all_parts_df is not None and not all_parts_df.empty: 
             m_parts = all_parts_df[all_parts_df[SP_MACHINE] == mach_name]
             if not m_parts.empty:
                 urgent_parts = m_parts[m_parts[SP_STOCK] <= 2]
                 if not urgent_parts.empty:
-                    return "⚠️ 부품 재고 부족", "#FFFBEB", "#B45309", "border: 2px solid #F59E0B;"
+                    return "⚠️ 부품 재고 부족", "#FFFBEB", "#B45309", "border: 1px solid #FDE68A;"
         
-        return "🟢 정상 가동", "#FFFFFF", "#0F172A", "border: 1px solid #E2E8F0;"
+        return "🟢 정상 가동", "#FFFFFF", "#475569", "border: 1px solid #E2E8F0;"
 
     departments = sorted(df_machines["dept"].dropna().unique())
 
     for dept in departments:
-        st.markdown(f"<h2 style='margin-top: 40px; border-bottom: 2px solid #CBD5E1; padding-bottom: 10px; color: #334155;'>🏢 {dept}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='margin-top: 30px; border-bottom: 2px solid #E2E8F0; padding-bottom: 10px; color: #475569;'>🏢 {dept}</h3>", unsafe_allow_html=True)
         dept_machines = df_machines[df_machines["dept"] == dept]
         
         lines = sorted(dept_machines["line"].dropna().unique())
         for line in lines:
-            st.markdown(f"<h4 style='color: #64748B; margin-top:20px; margin-bottom:15px;'>📍 라인: {line}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h5 style='color: #94A3B8; margin-top:15px; margin-bottom:10px;'>📍 라인: {line}</h5>", unsafe_allow_html=True)
             line_machines = dept_machines[dept_machines["line"] == line]
             
             cols = st.columns(4)
@@ -347,17 +364,17 @@ def render_manager_dashboard(all_parts_df):
                 
                 with cols[i % 4]:
                     card_html = f"""
-                    <div style="background-color: {bg_color}; {border_style} border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                        <h4 style="margin: 0; color: #1E293B; font-size: 1.1rem; font-weight: 800;">{mach_name}</h4>
-                        <div style="margin: 15px 0 0 0; padding: 8px; border-radius: 8px; background-color: rgba(255,255,255,0.7); font-weight: bold; color: {text_color}; font-size: 1rem;">
+                    <div style="background-color: {bg_color}; {border_style} border-radius: 12px; padding: 20px; margin-bottom: 15px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                        <h4 style="margin: 0; color: #1E293B; font-size: 1.05rem; font-weight: 700;">{mach_name}</h4>
+                        <div style="margin: 12px 0 0 0; padding: 6px; border-radius: 6px; background-color: rgba(255,255,255,0.8); font-weight: bold; color: {text_color}; font-size: 0.95rem;">
                             {status_text}
                         </div>
                     </div>
                     """
                     st.markdown(card_html, unsafe_allow_html=True)
                     
-                    if st.button(f"🔍 {mach_name} 점검하기", key=f"mgr_btn_{mach_name}_{i}", use_container_width=True):
-                        st.session_state.user_team = f"시설에너지관리팀 ({dept})"
+                    if st.button(f"🔍 점검하기", key=f"mgr_btn_{mach_name}_{i}", use_container_width=True):
+                        st.session_state.user_team = f"관제센터 ({dept})"
                         st.session_state.user_machine = mach_name
                         st.session_state.auth_step = "main_app"
                         st.rerun()
@@ -368,30 +385,29 @@ def render_manager_dashboard(all_parts_df):
 def render_setup_screen():
     if not is_authenticated(): return require_login_message()
     
-    render_hero_banner() # 상단 스크롤 아웃 배너 추가
+    render_hero_banner()
     
     col1, col2, col3 = st.columns([0.5, 3, 0.5])
     with col2:
-        st.markdown('<div class="styled-card">', unsafe_allow_html=True)
-        
         user = st.session_state["user"]
         
-        # [핵심] 관리자 계정일 때만 관제 센터 버튼 노출
+        # [핵심] 소속팀이 '시설에너지관리팀'일 경우에만 관제 센터 진입 버튼 노출
         if is_manager():
             st.markdown("""
-                <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
-                    <h3 style='text-align:center; color: #DC2626; margin-top: 0; margin-bottom: 15px;'>👑 관리자 전용 메뉴</h3>
+                <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 12px; margin-bottom: 30px; border-left: 6px solid #6B8E7B;">
+                    <h3 style='margin-top: 0; margin-bottom: 15px; color: #334155;'>🛠️ 시설에너지관리팀 전용 메뉴</h3>
             """, unsafe_allow_html=True)
             col_m1, col_m2, col_m3 = st.columns([1,2,1])
             with col_m2:
-                if st.button("🚨 시설에너지관리팀 통합 관제 센터", type="primary", use_container_width=True):
+                if st.button("🚨 통합 관제 센터 입장", type="primary", use_container_width=True):
                     st.session_state.auth_step = "manager_dashboard"
                     st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
         
-        st.markdown("<h3 style='text-align:center; color: #0F172A; margin-bottom: 30px;'>🏭 작업 공정 및 기기 라우팅</h3>", unsafe_allow_html=True)
+        st.markdown('<div class="styled-card">', unsafe_allow_html=True)
+        st.markdown("<h3 style='color: #0F172A; margin-bottom: 20px; border-bottom: 2px solid #E2E8F0; padding-bottom: 10px;'>작업 공정 및 기기 라우팅</h3>", unsafe_allow_html=True)
 
-        st.info(f"👤 **현재 접속자:** `{user['display_name']} ({user['email']})`")
+        st.caption(f"👤 접속자: {user.get('display_name')} ({user.get('factory')} / {user.get('team')})")
         
         df_machines = load_machines()
         if df_machines.empty or "factory" not in df_machines.columns:
@@ -420,16 +436,16 @@ def render_setup_screen():
                 mach_list = df_machines[(df_machines["factory"] == selected_factory) & (df_machines["dept"] == selected_dept) & (df_machines["line"] == selected_line)]["machine_name"].dropna().tolist()
                 with step_col4: st.success(f"✅ 총 {len(mach_list)}대의 설비 확인됨")
 
-                st.markdown(f"<h4 style='color: #007BEC; text-align: center; margin: 30px 0 20px; font-weight: 800;'>4️⃣ 정비 대상 기기 선택</h4>", unsafe_allow_html=True)
+                st.markdown(f"<h4 style='color: #6B8E7B; margin: 30px 0 15px; font-weight: 700;'>4️⃣ 정비 대상 기기 선택</h4>", unsafe_allow_html=True)
                 img_cols = st.columns(4, gap="medium")
                 for i, mach_name in enumerate(mach_list):
                     mach_info = df_machines[df_machines["machine_name"] == mach_name].iloc[0]
                     img_url = mach_info.get("machine_image_url")
                     with img_cols[i % 4]:
                         if pd.notna(img_url) and str(img_url).strip().startswith("http"):
-                            st.markdown(f"""<div style="width:100%; aspect-ratio:16/9; background-image:url('{img_url}'); background-size:cover; background-position:center; border:1px solid #E2E8F0; border-radius:12px; margin-bottom:12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"></div>""", unsafe_allow_html=True)
+                            st.markdown(f"""<div style="width:100%; aspect-ratio:16/9; background-image:url('{img_url}'); background-size:cover; background-position:center; border:1px solid #E2E8F0; border-radius:8px; margin-bottom:12px; box-shadow: 0 2px 4px rgba(0,0,0,0.03);"></div>""", unsafe_allow_html=True)
                         else:
-                            st.markdown("""<div style="width:100%; aspect-ratio:16/9; background:#F1F5F9; border:1px dashed #CBD5E1; border-radius:12px; margin-bottom:12px; display:flex; justify-content:center; align-items:center;"><span style="color:#94A3B8; font-size:0.8rem;">사진 없음</span></div>""", unsafe_allow_html=True)
+                            st.markdown("""<div style="width:100%; aspect-ratio:16/9; background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:8px; margin-bottom:12px; display:flex; justify-content:center; align-items:center;"><span style="color:#94A3B8; font-size:0.8rem;">사진 없음</span></div>""", unsafe_allow_html=True)
                         
                         if st.button(f"⚙️ {mach_name}", key=f"btn_mach_{i}", use_container_width=True):
                             st.session_state.user_team = f"{selected_factory} / {selected_dept} / {selected_line}"
@@ -457,8 +473,8 @@ def render_tab_parts(mach_df, selected_mach):
     col1, col2 = st.columns([1, 1.2], gap="medium")
 
     with col1:
-        st.markdown("<span class='section-title'>1️⃣ 세부 부품 선택</span>", unsafe_allow_html=True)
-        selected_part = st.selectbox("🔧 부품명", mach_df[SP_PART].unique(), key="sl_part_only")
+        st.markdown("<span class='section-title' style='color:#6B8E7B; font-weight:700;'>1️⃣ 세부 부품 선택</span>", unsafe_allow_html=True)
+        selected_part = st.selectbox("부품명", mach_df[SP_PART].unique(), key="sl_part_only")
         part_info = mach_df[mach_df[SP_PART] == selected_part].iloc[0]
         part_id = part_info.get(SP_ID)
 
@@ -469,7 +485,7 @@ def render_tab_parts(mach_df, selected_mach):
             if not replace_logs.empty:
                 recent_replace_date = replace_logs.iloc[0][ML_DATE]
 
-        st.markdown("<span class='section-title'>2️⃣ 실시간 상태 조회</span>", unsafe_allow_html=True)
+        st.markdown("<br><span class='section-title' style='color:#6B8E7B; font-weight:700;'>2️⃣ 실시간 상태 조회</span>", unsafe_allow_html=True)
         st.markdown(f"📅 **최근 교체일 :** `{recent_replace_date}`")
         st.markdown(f"📦 **보유 재고 :** `{part_info.get(SP_STOCK, 0)} EA`")
         
@@ -486,7 +502,7 @@ def render_tab_parts(mach_df, selected_mach):
                 else: st.error(f"❌ 수정 실패: {err}")
 
     with col2:
-        st.markdown("<span class='section-title'>3️⃣ 소모품 교체 및 사이클 리셋</span>", unsafe_allow_html=True)
+        st.markdown("<span class='section-title' style='color:#6B8E7B; font-weight:700;'>3️⃣ 소모품 교체 및 사이클 리셋</span>", unsafe_allow_html=True)
         chosen_date = st.date_input("📆 교체일 지정", datetime.date.today(), key="exec_date_picker")
         if st.button("🚀 교체 확정 처리 완료", type="primary", use_container_width=True):
             if part_info.get(SP_STOCK, 0) <= 0: st.error("❌ 재고 부족. 창고 보관 수량을 확인하세요.")
@@ -615,10 +631,10 @@ def render_dashboard(all_parts_df):
     mach_df = get_machine_parts_df(all_parts_df, selected_mach)
 
     nav_col1, nav_col2, nav_col3 = st.columns([6, 2, 2])
-    with nav_col1: st.caption(f"🔧 작업자: {user['display_name']} | 기기: {selected_mach}")
+    with nav_col1: st.caption(f"🔧 작업자: {user.get('display_name')} | 기기: {selected_mach}")
     with nav_col2:
-        if st.button("🔒 상위 메뉴로 이동", use_container_width=True):
-            if "시설에너지관리팀" in st.session_state.user_team:
+        if st.button("⬅️ 상위 메뉴로 이동", use_container_width=True):
+            if is_manager():
                 st.session_state.auth_step = "manager_dashboard"
             else:
                 st.session_state.auth_step = "setup_gate"
@@ -628,13 +644,12 @@ def render_dashboard(all_parts_df):
             auth_sign_out()
             st.rerun()
 
-    st.title(f"🖥️ [{selected_mach}] 실시간 대시보드")
+    st.markdown(f"<h2 style='color:#1E293B; margin-top:20px;'>🖥️ [{selected_mach}] 실시간 대시보드</h2>", unsafe_allow_html=True)
     
     df_machines = load_machines()
     mach_info_row = df_machines[df_machines["machine_name"] == selected_mach]
     machine_img_url = mach_info_row.iloc[0].get("machine_image_url") if not mach_info_row.empty else None
 
-    # 최근 정비 일지를 가져와서 현재 "정비 요청" 상태인지 확인
     all_logs_df = load_maintenance_logs(selected_mach)
     is_requested = False
     if not all_logs_df.empty:
@@ -645,8 +660,8 @@ def render_dashboard(all_parts_df):
     img_col, metric_col = st.columns([1, 2], gap="large")
     with img_col:
         if pd.notna(machine_img_url) and str(machine_img_url).strip().startswith("http"):
-            st.markdown(f"""<div style="width:100%; aspect-ratio:16/9; background-image:url('{machine_img_url}'); background-size:cover; background-position:center; border-radius:12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"></div>""", unsafe_allow_html=True)
-        else: st.info("📷 사진이 없습니다.")
+            st.markdown(f"""<div style="width:100%; aspect-ratio:16/9; background-image:url('{machine_img_url}'); background-size:cover; background-position:center; border-radius:12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);"></div>""", unsafe_allow_html=True)
+        else: st.info("📷 기기 사진이 없습니다.")
     with metric_col:
         st.markdown(f"**관리번호:** `MGT-2026-001` | **제조사:** `(주)이수이엔지`")
         
@@ -688,7 +703,7 @@ def render_dashboard(all_parts_df):
                     st.cache_data.clear()
                     st.rerun()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 1. 자산 관제 및 교체", "📝 2. 정비 일지 기록", "📸 3. AI 진단", "💬 4. AI 챗봇", "📥 5. 신규 등록"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 자산 관제 및 교체", "📝 정비 일지 기록", "📸 AI 진단", "💬 AI 챗봇", "📥 신규 등록"])
     with tab1: render_tab_parts(mach_df, selected_mach)
     with tab2: render_tab_maintenance_logs(mach_df, selected_mach)
     with tab3: render_tab_vision(selected_mach)
@@ -697,18 +712,15 @@ def render_dashboard(all_parts_df):
 
 def main():
     init_session_state()
-    encoded_bg = get_base64_encoded_image("정관장 이미지.jpg")
-    encoded_logo = get_base64_encoded_image("kgc_logo.png.png")
     
-    render_global_css(encoded_logo)
+    # 노션 스타일의 글로벌 CSS 적용
+    render_global_css()
     
     if not is_authenticated():
         st.session_state.auth_step = "login_gate"
-        render_login_css(encoded_bg, encoded_logo)
         render_login_screen()
         return
         
-    render_main_css(encoded_bg)
     all_parts_df = load_spare_parts()
     
     if st.session_state.auth_step == "setup_gate": 
