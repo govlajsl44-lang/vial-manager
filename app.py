@@ -48,62 +48,32 @@ def load_machines():
         return pd.DataFrame()
 
 # ======================================================================
-# 권한 및 인증 (회원가입 방식 원상 복구)
+# 권한 및 인증 (회원가입 제거, 사전 등록 아이디 로그인 전용)
 # ======================================================================
 def is_authenticated():
     return st.session_state.get("user") is not None
 
 def is_manager():
-    """로그인한 유저가 '시설에너지관리팀' 이거나 '마스터 관리자'인지 확인"""
     user = st.session_state.get("user")
-    if not user:
-        return False
-        
+    if not user: return False
     email = user.get("email", "").lower()
-    team = user.get("team", "")
-    
-    if "admin" in email or "master" in email:
+    if email.startswith("admin") or email.startswith("master"):
         return True
-    if team == "시설에너지관리팀":
-        return True
-        
     return False
 
-def store_auth_user(response):
+def store_auth_user(response, login_id):
     user = response.user
-    if not user:
-        return False
-    metadata = user.user_metadata or {}
+    if not user: return False
     st.session_state["user"] = {
         "id": user.id,
         "email": user.email,
-        "display_name": metadata.get("display_name") or (user.email or "").split("@")[0],
-        "factory": metadata.get("factory", ""),
-        "team": metadata.get("team", "")
+        "display_name": login_id 
     }
     return True
 
 def auth_sign_in(email, password):
     try:
         response = init_supabase().auth.sign_in_with_password({"email": email, "password": password})
-        return True, response, None
-    except Exception as exc:
-        return False, None, str(exc)
-
-def auth_sign_up(email, password, name, factory, team):
-    try:
-        payload = {
-            "email": email, 
-            "password": password,
-            "options": {
-                "data": {
-                    "display_name": name,
-                    "factory": factory,
-                    "team": team
-                }
-            }
-        }
-        response = init_supabase().auth.sign_up(payload)
         return True, response, None
     except Exception as exc:
         return False, None, str(exc)
@@ -120,19 +90,13 @@ def auth_sign_out():
 
 def get_worker_name():
     user = st.session_state.get("user")
-    if not user:
-        return "미인증 사용자"
-        
-    email = user.get("email", "").lower()
-    name = user.get("display_name") or email.split("@")[0]
-    factory = user.get("factory", "")
-    team = user.get("team", "")
-    
-    if "admin" in email or "master" in email:
+    if not user: return "미인증 사용자"
+    name = user.get("display_name", "작업자")
+    team = st.session_state.get("user_team", "")
+    if name in ["admin", "master"]:
         return f"[👑 마스터 관리자] {name}"
-        
-    if factory and team:
-        return f"[{factory}] {team} / {name}"
+    if team:
+        return f"[{team}] {name}"
     return name
 
 def require_login_message():
@@ -150,8 +114,7 @@ def load_spare_parts():
     try:
         response = init_supabase().table(TABLE_SPARE_PARTS).select("*").execute()
         df = pd.DataFrame(response.data)
-        if df.empty:
-            return df
+        if df.empty: return df
         for col in (SP_STOCK, SP_LIFE_M):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
@@ -169,8 +132,7 @@ def update_spare_part(part_id, updates):
 def load_maintenance_logs(machine_name=None):
     try:
         query = init_supabase().table(TABLE_MAINTENANCE_LOGS).select("*")
-        if machine_name:
-            query = query.eq(ML_MACHINE, machine_name)
+        if machine_name: query = query.eq(ML_MACHINE, machine_name)
         response = query.order(ML_DATE, desc=True).order("id", desc=True).execute() 
         return pd.DataFrame(response.data)
     except Exception:
@@ -195,7 +157,7 @@ def get_machine_parts_df(all_parts_df, machine_name):
     return all_parts_df[all_parts_df[SP_MACHINE] == machine_name].copy()
 
 # ======================================================================
-# UI 유틸리티 (노션 스타일 깔끔한 디자인 적용)
+# UI 유틸리티 
 # ======================================================================
 def get_base64_encoded_image(image_path):
     if os.path.exists(image_path):
@@ -209,36 +171,93 @@ def init_session_state():
         if key not in st.session_state:
             st.session_state[key] = value
 
-def render_global_css():
+# ======================================================================
+# 로그인 전용 스타일 (다크 & 클린 테마)
+# ======================================================================
+def render_login_css(encoded_bg):
     st.markdown(
         f"""
         <style>
-        div[data-testid="stAppViewContainer"] {{ background-color: #FFFFFF !important; }}
+        /* 기본 헤더 툴바 숨김 */
+        header[data-testid="stHeader"], div[data-testid="stToolbar"] {{ visibility: hidden !important; }}
+        
+        /* 1. 배경 설정: 정관장 이미지 위에 어두운 네이비 필터 씌우기 */
+        div[data-testid="stAppViewContainer"] {{ 
+            background: linear-gradient(rgba(20, 25, 45, 0.8), rgba(20, 25, 45, 0.88)), url('{encoded_bg}') !important; 
+            background-size: cover !important; 
+            background-position: center !important; 
+            background-attachment: fixed !important; 
+        }}
+        
+        /* 2. 로그인 중앙 카드 디자인 (ABLESTACK 스타일) */
+        .login-card-container {{
+            background-color: #212126 !important; 
+            border-radius: 12px !important;
+            padding: 50px 40px !important;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+            border: 1px solid rgba(255,255,255,0.05);
+            margin-top: 10vh;
+        }}
+
+        /* 3. 입력창 라벨 스타일 */
+        .stTextInput label p {{ 
+            color: #A0AEC0 !important; 
+            font-size: 0.9rem !important; 
+            font-weight: 600 !important;
+            margin-bottom: 5px !important;
+        }}
+        
+        /* 4. 입력창 본체 다크 테마 커스텀 */
+        div[data-baseweb="input"] {{
+            background-color: #151518 !important;
+            border: 1px solid #3A3A40 !important;
+            border-radius: 6px !important;
+            transition: all 0.2s;
+        }}
+        div[data-baseweb="input"] input {{ 
+            color: #FFFFFF !important; 
+        }}
+        /* 포커스 되었을 때 블루 라인 */
+        div[data-baseweb="input"]:focus-within {{ 
+            border-color: #3B82F6 !important; 
+            box-shadow: 0 0 0 1px #3B82F6 !important;
+        }}
+        
+        /* 5. 블루 포인트 로그인 버튼 */
+        div[data-testid="stButton"] button {{
+            background-color: #3B82F6 !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 6px !important;
+            height: 48px !important;
+            font-size: 1.05rem !important;
+            font-weight: bold !important;
+            width: 100% !important;
+            margin-top: 20px !important;
+            transition: background-color 0.2s;
+        }}
+        div[data-testid="stButton"] button:hover {{ 
+            background-color: #2563EB !important; 
+        }}
+        </style>
+        """, unsafe_allow_html=True
+    )
+
+# ======================================================================
+# 메인 앱 전용 스타일 (노션 스타일 클린 테마)
+# ======================================================================
+def render_main_css():
+    st.markdown(
+        f"""
+        <style>
+        div[data-testid="stAppViewContainer"] {{ background-color: #FFFFFF !important; background-image: none !important; }}
         header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0px !important; }}
         .block-container {{ padding-top: 0rem !important; padding-bottom: 15rem !important; max-width: 1100px !important; }}
-        
         h1, h2, h3, h4, p, span, label, div {{ color: #1E293B !important; font-family: 'Pretendard', sans-serif; }}
-        
-        .styled-card {{ 
-            background-color: #F8F9FA !important; 
-            border: 1px solid #E9ECEF !important; 
-            border-radius: 12px !important; 
-            padding: 40px !important; 
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01) !important; 
-            margin-bottom: 30px;
-        }}
-        
-        .styled-card h2, .styled-card h3, .styled-card h4 {{ color: #343A40 !important; }}
-        
+        .styled-card {{ background-color: #F8F9FA !important; border: 1px solid #E9ECEF !important; border-radius: 12px !important; padding: 40px !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01) !important; margin-bottom: 30px; }}
         div[data-testid="stMetric"] {{ background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-top: 4px solid #6B8E7B !important; padding: 0.8rem !important; border-radius: 12px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; margin-bottom: 8px !important; }}
-        
         div[data-testid="stButton"] button {{ border-radius: 8px !important; font-weight: bold; }}
-        
-        @keyframes alert-pulse {{
-            0% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }}
-            70% {{ box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }}
-            100% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }}
-        }}
+        @keyframes alert-pulse {{ 0% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }} 70% {{ box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }} }}
         </style>
         """, unsafe_allow_html=True
     )
@@ -255,57 +274,38 @@ def render_hero_banner():
         )
 
 # ======================================================================
-# 로그인 & 회원가입 화면 (원상 복구)
+# 로그인 전용 화면 (고급 다크 카드 디자인 적용)
 # ======================================================================
 def render_login_screen():
-    render_hero_banner()
+    logo_b64 = get_base64_encoded_image("KGC Smart MRO.png")
     
-    col1, col2, col3 = st.columns([1, 1.2, 1])
+    col1, col2, col3 = st.columns([1, 1.3, 1])
     with col2:
-        st.markdown('<div class="styled-card">', unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align:center; font-weight: 800; margin-bottom: 20px;'>환영합니다</h2>", unsafe_allow_html=True)
-        tab_login, tab_register = st.tabs(["로그인", "회원가입"])
+        st.markdown('<div class="login-card-container">', unsafe_allow_html=True)
         
-        with tab_login:
-            login_email = st.text_input("이메일", key="login_email_input", placeholder="user@kgc.com")
-            login_pw = st.text_input("비밀번호", type="password", key="login_pw_input")
-            if st.button("로그인", type="primary", use_container_width=True):
-                with st.spinner("로그인 중..."):
-                    ok, response, err = auth_sign_in(login_email.strip(), login_pw)
-                    if ok and store_auth_user(response):
+        # 로고 영역: 어두운 배경에서도 로고가 돋보이도록 부드러운 화이트 배경(글래스) 처리
+        if logo_b64:
+            st.markdown(f'''
+                <div style="text-align:center; margin-bottom: 40px; background-color: rgba(255, 255, 255, 0.85); padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <img src="{logo_b64}" style="max-width: 250px; width: 100%; object-fit: contain;">
+                </div>
+            ''', unsafe_allow_html=True)
+            
+        login_id = st.text_input("아이디", key="login_id_input", placeholder="사번 또는 아이디 입력")
+        login_pw = st.text_input("비밀번호", type="password", key="login_pw_input", placeholder="비밀번호 입력")
+        
+        if st.button("로그인", type="primary", use_container_width=True):
+            if not login_id.strip() or not login_pw:
+                st.warning("아이디와 비밀번호를 모두 입력해주세요.")
+            else:
+                with st.spinner("인증 처리 중..."):
+                    auth_email = f"{login_id.strip().lower()}@kgc.com"
+                    ok, response, err = auth_sign_in(auth_email, login_pw)
+                    if ok and store_auth_user(response, login_id.strip()):
                         st.session_state.auth_step = "setup_gate"
                         st.rerun()
                     else: 
-                        st.error("❌ 로그인 실패. 아이디와 비밀번호를 확인하세요.")
-                        
-        with tab_register:
-            reg_email = st.text_input("가입 이메일", key="reg_email_input", placeholder="user@kgc.com")
-            reg_pw = st.text_input("비밀번호", type="password", key="reg_pw_input")
-            
-            st.markdown("---")
-            st.markdown("#### 개인 및 소속 정보")
-            reg_name = st.text_input("성명", key="reg_name_input", placeholder="홍길동")
-            
-            reg_factory = st.selectbox("소속 공장", ["선택해주세요", "부여공장", "원주공장"])
-            
-            reg_team = "선택해주세요"
-            if reg_factory == "부여공장":
-                reg_team = st.selectbox("소속 팀", ["선택해주세요", "제품1팀", "제품2팀", "시설에너지관리팀", "공정개선팀", "지원팀", "산업안전 보건팀"])
-            elif reg_factory == "원주공장":
-                reg_team = st.selectbox("소속 팀", ["선택해주세요", "생산팀", "시설에너지관리팀", "지원팀"])
-            else:
-                st.info("👆 공장을 먼저 선택하시면 팀 목록이 표시됩니다.")
-
-            if st.button("회원가입 완료", use_container_width=True):
-                if reg_factory == "선택해주세요" or reg_team == "선택해주세요" or not reg_name.strip():
-                    st.warning("⚠️ 성명, 소속 공장 및 팀을 모두 선택해주세요.")
-                else:
-                    with st.spinner("가입 처리 중..."):
-                        ok, response, err = auth_sign_up(reg_email.strip(), reg_pw, reg_name.strip(), reg_factory, reg_team)
-                        if ok:
-                            st.success("✅ 회원가입 완료! 로그인 탭에서 접속해주세요.")
-                        else: 
-                            st.error(f"❌ 가입 실패: {err}")
+                        st.error("❌ 등록되지 않은 아이디이거나 비밀번호가 틀렸습니다.")
                         
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -321,13 +321,7 @@ def render_manager_dashboard(all_parts_df):
             st.session_state.auth_step = "setup_gate"
             st.rerun()
 
-    user = st.session_state["user"]
-    email = user.get("email", "").lower()
-    is_master = "admin" in email or "master" in email
-    
-    title_text = "👑 마스터 관리자 통합 관제 센터" if is_master else "🛠️ 시설에너지관리팀 통합 관제 센터"
-
-    st.markdown(f"<div style='background-color: #F1F5F9; padding: 25px; border-radius: 12px; border-left: 6px solid #6B8E7B; margin-bottom: 30px;'><h2 style='margin:0; padding:0; color:#334155;'>{title_text}</h2><p style='margin-top:8px; color:#64748B;'>전체 설비의 실시간 상태를 모니터링하고 정비 요청에 즉각 대응합니다.</p></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: #F1F5F9; padding: 25px; border-radius: 12px; border-left: 6px solid #6B8E7B; margin-bottom: 30px;'><h2 style='margin:0; padding:0; color:#334155;'>👑 마스터 관리자 통합 관제 센터</h2><p style='margin-top:8px; color:#64748B;'>전체 설비의 실시간 상태를 모니터링하고 정비 요청에 즉각 대응합니다.</p></div>", unsafe_allow_html=True)
 
     df_machines = load_machines()
     if df_machines.empty:
@@ -396,22 +390,14 @@ def render_setup_screen():
     
     col1, col2, col3 = st.columns([0.5, 3, 0.5])
     with col2:
-        user = st.session_state["user"]
-        
         if is_manager():
-            email = user.get("email", "").lower()
-            is_master = "admin" in email or "master" in email
-            
-            menu_title = "👑 마스터 최고 관리자 전용 메뉴" if is_master else "🛠️ 시설에너지관리팀 전용 메뉴"
-            btn_title = "👑 마스터 통합 관제 센터 입장" if is_master else "🚨 통합 관제 센터 입장"
-            
             st.markdown(f"""
                 <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 12px; margin-bottom: 30px; border-left: 6px solid #6B8E7B;">
-                    <h3 style='margin-top: 0; margin-bottom: 15px; color: #334155;'>{menu_title}</h3>
+                    <h3 style='margin-top: 0; margin-bottom: 15px; color: #334155;'>👑 마스터 최고 관리자 전용 메뉴</h3>
             """, unsafe_allow_html=True)
             col_m1, col_m2, col_m3 = st.columns([1,2,1])
             with col_m2:
-                if st.button(btn_title, type="primary", use_container_width=True):
+                if st.button("👑 마스터 통합 관제 센터 입장", type="primary", use_container_width=True):
                     st.session_state.auth_step = "manager_dashboard"
                     st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
@@ -473,7 +459,7 @@ def render_setup_screen():
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================================
-# 탭 1 ~ 5 (기존 정비 기능)
+# 탭 1 ~ 6 (정비 및 관제 기능)
 # ======================================================================
 def render_tab_parts(mach_df, selected_mach):
     if not is_authenticated(): return
@@ -631,7 +617,6 @@ def render_tab_sop(selected_mach):
     if not is_authenticated(): return
     st.markdown(f"<h3 style='color:#334155; margin-bottom:20px;'>📖 [{selected_mach}] 표준 작업 지침서 (SOP)</h3>", unsafe_allow_html=True)
     
-    # CSS를 활용한 완벽한 텍스트 선택(드래그) 방지 및 워터마크 기법 적용
     st.markdown("""
         <style>
         .secure-sop-container {
@@ -641,8 +626,6 @@ def render_tab_sop(selected_mach):
             border-radius: 12px;
             padding: 40px;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
-            
-            /* 웹 환경에서 드래그 및 복사 원천 차단 */
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
@@ -655,8 +638,8 @@ def render_tab_sop(selected_mach):
             transform: translate(-50%, -50%) rotate(-30deg);
             font-size: 4rem;
             font-weight: 900;
-            color: rgba(107, 142, 123, 0.08); /* 연한 워터마크 */
-            pointer-events: none; /* 클릭을 방해하지 않음 */
+            color: rgba(107, 142, 123, 0.08); 
+            pointer-events: none; 
             white-space: nowrap;
             z-index: 999;
         }
@@ -679,7 +662,6 @@ def render_tab_sop(selected_mach):
                 <li>오류 알람이 발생하지 않는지 30초간 대기하며 패널을 모니터링합니다.</li>
                 <li>[운전(Start)] 버튼을 눌러 공정을 시작합니다.</li>
             </ul>
-
             <h4 style="color:#1E293B; border-bottom:2px solid #F1F5F9; padding-bottom:8px; margin-top:30px;">3. 비상 상황 발생 시 조치</h4>
             <ul style="color:#475569; line-height:1.8;">
                 <li>기계적 소음, 타는 냄새, 혹은 패널에 빨간 경고등이 켜질 경우 <b>즉시 [비상정지(EMG)] 버튼</b>을 누릅니다.</li>
@@ -703,10 +685,8 @@ def render_dashboard(all_parts_df):
     with nav_col1: st.caption(f"🔧 작업자: {get_worker_name()} | 기기: {selected_mach}")
     with nav_col2:
         if st.button("⬅️ 상위 메뉴로 이동", use_container_width=True):
-            if is_manager():
-                st.session_state.auth_step = "manager_dashboard"
-            else:
-                st.session_state.auth_step = "setup_gate"
+            if is_manager(): st.session_state.auth_step = "manager_dashboard"
+            else: st.session_state.auth_step = "setup_gate"
             st.rerun()
     with nav_col3:
         if st.button("🚪 로그아웃", use_container_width=True):
@@ -719,7 +699,6 @@ def render_dashboard(all_parts_df):
     mach_info_row = df_machines[df_machines["machine_name"] == selected_mach]
     machine_img_url = mach_info_row.iloc[0].get("machine_image_url") if not mach_info_row.empty else None
 
-    # 정비 요청 상태 감지
     all_logs_df = load_maintenance_logs(selected_mach)
     is_requested = False
     if not all_logs_df.empty:
@@ -728,14 +707,11 @@ def render_dashboard(all_parts_df):
             is_requested = True
 
     # ------------------------------------------------------------------
-    # 🏭 실시간 생산량 & 불량률 로직 추가 (추후 실제 데이터 연동용)
-    # 현재는 기능을 보여드리기 위해 불량률이 높은 상황(시뮬레이션)으로 고정했습니다.
+    # 🏭 실시간 생산량 & 불량률 로직 추가
     # ------------------------------------------------------------------
     current_production = "12,500" 
-    defect_rate_percent = 3.8 # 현재 불량률 (예시)
-    avg_defect_percent = 1.5  # 평균 불량률 (예시)
-    
-    # 평균 불량률보다 현재 불량률이 높으면 경고등 작동
+    defect_rate_percent = 3.8 # 현재 불량률 시뮬레이션
+    avg_defect_percent = 1.5  
     is_defect_warning = defect_rate_percent > avg_defect_percent 
 
     img_col, metric_col = st.columns([1.2, 2.8], gap="large")
@@ -745,9 +721,7 @@ def render_dashboard(all_parts_df):
         else: st.info("📷 기기 사진이 없습니다.")
         
     with metric_col:
-        # 4개의 관제 카드로 세분화 (운전중, 생산량, 불량률, 위험 소모품)
         m1, m2, m3, m4 = st.columns(4)
-        
         m1.metric("기계 상태", "🟢 운전중")
         m2.metric("현재 생산량", f"{current_production} 개")
         
@@ -798,8 +772,7 @@ def render_dashboard(all_parts_df):
                     st.cache_data.clear()
                     st.rerun()
 
-    # SOP 탭이 추가된 6개의 탭
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📋 자산 관제 및 교체", "📝 정비 일지 기록", "📸 AI 진단", "💬 AI 챗봇", "📥 신규 등록", "📖 SOP 메뉴얼"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📋 자산 관제 및 교체", "📝 정비 일지 기록", "📸 AI 진단", "💬 AI 챗봇", "📥 신규 등록", "📖 SOP 매뉴얼"])
     with tab1: render_tab_parts(mach_df, selected_mach)
     with tab2: render_tab_maintenance_logs(mach_df, selected_mach)
     with tab3: render_tab_vision(selected_mach)
@@ -809,14 +782,15 @@ def render_dashboard(all_parts_df):
 
 def main():
     init_session_state()
-    
-    render_global_css()
+    encoded_bg = get_base64_encoded_image("정관장 이미지.jpg")
     
     if not is_authenticated():
         st.session_state.auth_step = "login_gate"
+        render_login_css(encoded_bg)
         render_login_screen()
         return
         
+    render_main_css()
     all_parts_df = load_spare_parts()
     
     if st.session_state.auth_step == "setup_gate": 
