@@ -95,9 +95,45 @@ def secret(key, default=""):
         return default
 
 
+def normalize_url(url):
+    """https://xxx.supabase.co 형태로 정리한다.
+
+    대시보드의 REST 엔드포인트(.../rest/v1/)를 그대로 붙여넣는 실수가 잦은데,
+    그러면 Auth 요청이 PostgREST로 가서 PGRST125 오류가 난다.
+    """
+    u = (url or "").strip().rstrip("/")
+    for suffix in ("/rest/v1", "/auth/v1", "/storage/v1", "/realtime/v1"):
+        if u.endswith(suffix):
+            u = u[: -len(suffix)]
+    return u.rstrip("/")
+
+
+def key_kind(key):
+    """키 종류를 판별한다. (종류, 클라이언트 사용 가능 여부)"""
+    k = (key or "").strip()
+    if k.startswith("sb_secret_"):
+        return "secret 키", False
+    if k.startswith("sb_publishable_"):
+        return "publishable 키", True
+    if k.startswith("eyJ"):
+        # JWT 페이로드를 열어 service_role 여부 확인
+        try:
+            import base64
+            import json
+            payload = k.split(".")[1]
+            payload += "=" * (-len(payload) % 4)
+            role = json.loads(base64.urlsafe_b64decode(payload)).get("role", "")
+            if role == "service_role":
+                return "service_role 키", False
+            return f"legacy {role or 'anon'} 키", True
+        except Exception:
+            return "JWT 키(판별 실패)", True
+    return "알 수 없는 형식", True
+
+
 def supa_config():
-    return (secret("SUPABASE_URL", DEFAULT_SUPABASE_URL),
-            secret("SUPABASE_KEY", DEFAULT_SUPABASE_KEY))
+    return (normalize_url(secret("SUPABASE_URL", DEFAULT_SUPABASE_URL)),
+            str(secret("SUPABASE_KEY", DEFAULT_SUPABASE_KEY)).strip())
 
 
 def get_supabase() -> "Client":
@@ -111,6 +147,15 @@ def get_supabase() -> "Client":
         st.stop()
     if "sb_client" not in st.session_state:
         url, key = supa_config()
+        kind, usable = key_kind(key)
+        if not usable:
+            st.error(
+                f"🚨 **{kind}**가 설정되어 있습니다. 이 키는 RLS를 무시하고 데이터베이스 전체에 "
+                "접근할 수 있어, 웹앱에 넣으면 안 됩니다.\n\n"
+                "1. Supabase → Settings → API Keys 에서 이 키를 **즉시 폐기(revoke/rotate)** 하세요.\n"
+                "2. `SUPABASE_KEY` 를 publishable 키 또는 legacy anon 키로 교체하세요."
+            )
+            st.stop()
         try:
             st.session_state.sb_client = create_client(url, key)
         except Exception as e:
@@ -293,18 +338,15 @@ def connection_panel():
     """로그인 화면 하단 진단 패널."""
     with st.expander("🛠 연결 진단 (문제가 있을 때 열어보세요)"):
         url, key = supa_config()
+        raw_url = str(secret("SUPABASE_URL", DEFAULT_SUPABASE_URL)).strip()
         from_secrets = bool(secret("SUPABASE_URL", "")) and bool(secret("SUPABASE_KEY", ""))
-        if key.startswith("sb_publishable_"):
-            ktype = "새 형식 publishable 키"
-        elif key.startswith("sb_secret_"):
-            ktype = "⚠️ secret 키 — 클라이언트에 쓰면 안 됩니다"
-        elif key.startswith("eyJ"):
-            ktype = "Legacy anon(JWT) 키"
-        else:
-            ktype = "알 수 없는 형식"
+        kind, usable = key_kind(key)
 
         st.write(f"- URL: `{url}`")
-        st.write(f"- 키 종류: {ktype} (`{key[:16]}…`, 길이 {len(key)})")
+        if normalize_url(raw_url) != raw_url.rstrip("/"):
+            st.warning(f"입력값 `{raw_url}` 에서 엔드포인트 경로를 제거했습니다. "
+                       "Secrets의 SUPABASE_URL도 프로젝트 주소만 남기도록 고쳐주세요.")
+        st.write(f"- 키 종류: {'✅' if usable else '🚨'} {kind} (`{key[:16]}…`, 길이 {len(key)})")
         st.write(f"- Secrets 사용: {'예' if from_secrets else '아니오 — 코드의 기본값 사용 중'}")
 
         if st.button("Auth 서버 연결 테스트"):
