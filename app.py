@@ -64,7 +64,7 @@ def is_manager():
     
     if "admin" in email or "master" in email:
         return True
-    if team == "시설에너지관리팀":
+    if "시설에너지관리팀" in team:
         return True
         
     return False
@@ -216,7 +216,6 @@ def render_login_css(encoded_bg):
         <style>
         header[data-testid="stHeader"], div[data-testid="stToolbar"] {{ visibility: hidden !important; }}
         
-        /* 배경 설정: 정관장 이미지 위에 은은한 어두운 필터 */
         div[data-testid="stAppViewContainer"] {{ 
             background: linear-gradient(rgba(10, 10, 15, 0.55), rgba(10, 10, 15, 0.65)), url('{encoded_bg}') !important; 
             background-size: cover !important; 
@@ -224,7 +223,6 @@ def render_login_css(encoded_bg):
             background-attachment: fixed !important; 
         }}
         
-        /* 로그인 중앙 카드 디자인 */
         .styled-card {{ 
             background-color: rgba(30, 30, 35, 0.88) !important; 
             border: 1px solid rgba(255, 255, 255, 0.08) !important; 
@@ -288,7 +286,7 @@ def render_hero_banner():
         )
 
 # ======================================================================
-# 로그인 & 회원가입 화면 (안정적인 카드 UI)
+# 로그인 & 회원가입 화면
 # ======================================================================
 def render_login_screen():
     logo_b64 = get_base64_encoded_image("KGC Smart MRO.png")
@@ -357,7 +355,7 @@ def render_manager_dashboard(all_parts_df):
 
     nav_col1, nav_col2 = st.columns([8, 2])
     with nav_col2:
-        if st.button("⬅️ 작업 라우팅 화면으로", use_container_width=True):
+        if st.button("⬅️ 작업 라우팅 화면으로", use_container_width=True, key="back_to_setup_from_mgr"):
             st.session_state.auth_step = "setup_gate"
             st.rerun()
 
@@ -420,7 +418,6 @@ def render_manager_dashboard(all_parts_df):
                     """
                     st.markdown(card_html, unsafe_allow_html=True)
                     
-                    # key에 부서(dept)와 라인(line)을 포함시켜 중복 충돌을 원천 차단합니다.
                     if st.button(f"🔍 점검하기", key=f"mgr_btn_{dept}_{line}_{mach_name}_{i}", use_container_width=True):
                         st.session_state.user_team = f"관제센터 ({dept})"
                         st.session_state.user_machine = mach_name
@@ -428,7 +425,7 @@ def render_manager_dashboard(all_parts_df):
                         st.rerun()
 
 # ======================================================================
-# 라우팅(공정 선택) 화면
+# 라우팅(공정 선택) 화면 (마스터 전용 상자 완전 삭제 및 권한별 공정/부서 처리)
 # ======================================================================
 def render_setup_screen():
     if not is_authenticated(): return require_login_message()
@@ -438,24 +435,6 @@ def render_setup_screen():
     col1, col2, col3 = st.columns([0.5, 3, 0.5])
     with col2:
         user = st.session_state["user"]
-        
-        if is_manager():
-            email = user.get("email", "").lower()
-            is_master = "admin" in email or "master" in email
-            
-            menu_title = "👑 마스터 최고 관리자 전용 메뉴" if is_master else "🛠️ 시설에너지관리팀 전용 메뉴"
-            btn_title = "👑 마스터 통합 관제 센터 입장" if is_master else "🚨 통합 관제 센터 입장"
-            
-            st.markdown(f"""
-                <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 12px; margin-bottom: 30px; border-left: 6px solid #6B8E7B;">
-                    <h3 style='margin-top: 0; margin-bottom: 15px; color: #334155;'>{menu_title}</h3>
-            """, unsafe_allow_html=True)
-            col_m1, col_m2, col_m3 = st.columns([1,2,1])
-            with col_m2:
-                if st.button(btn_title, type="primary", use_container_width=True):
-                    st.session_state.auth_step = "manager_dashboard"
-                    st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
         
         st.markdown('<div class="styled-card">', unsafe_allow_html=True)
         st.markdown("<h3 style='color: #0F172A; margin-bottom: 20px; border-bottom: 2px solid #E2E8F0; padding-bottom: 10px;'>작업 공정 및 기기 라우팅</h3>", unsafe_allow_html=True)
@@ -471,24 +450,45 @@ def render_setup_screen():
                 st.rerun()
             return st.markdown("</div>", unsafe_allow_html=True)
 
+        # 1️⃣ 소속 공장 선택
         step_col1, step_col2 = st.columns(2)
         with step_col1:
             factory_options = ["선택해주세요"] + sorted(df_machines["factory"].dropna().unique().tolist())
             selected_factory = st.selectbox("1️⃣ 소속 공장", factory_options)
+            
         with step_col2:
             if selected_factory != "선택해주세요":
                 dept_options = ["선택해주세요"] + sorted(df_machines[df_machines["factory"] == selected_factory]["dept"].dropna().unique().tolist())
                 selected_dept = st.selectbox("2️⃣ 담당 부서", dept_options)
-            else: selected_dept = "선택해주세요"
+            else: 
+                selected_dept = "선택해주세요"
 
+        # 2️⃣ 부서 선택 시 처리 (시설부 선택 혹은 관리자일 경우 관제센터로 연결 가능)
         if selected_dept != "선택해주세요":
+            # 만약 사용자가 '시설에너지관리팀'을 선택했거나 마스터 관리자인 경우 관제 센터 입장 버튼 제공
+            if selected_dept == "시설에너지관리팀" or is_manager():
+                st.markdown("""
+                    <div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 6px solid #6B8E7B;">
+                        <h4 style='margin-top: 0; margin-bottom: 10px; color: #334155;'>🚨 시설에너지관리팀 전용 관제 시스템</h4>
+                        <p style='color: #64748B; font-size: 0.9rem;'>전체 설비의 가동 및 재고 상태를 통합 관리하는 관제 센터로 입장하실 수 있습니다.</p>
+                """, unsafe_allow_html=True)
+                
+                if st.button("🛠️ 시설 통합 관제 센터 입장", type="primary", use_container_width=True, key="enter_manager_center"):
+                    st.session_state.auth_step = "manager_dashboard"
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            # 일반 라인/기기 선택 로직
             line_options = ["선택해주세요"] + sorted(df_machines[(df_machines["factory"] == selected_factory) & (df_machines["dept"] == selected_dept)]["line"].dropna().unique().tolist())
+            
             step_col3, step_col4 = st.columns(2)
             with step_col3:
                 selected_line = st.selectbox("3️⃣ 생산 라인", line_options)
+                
             if selected_line != "선택해주세요":
                 mach_list = df_machines[(df_machines["factory"] == selected_factory) & (df_machines["dept"] == selected_dept) & (df_machines["line"] == selected_line)]["machine_name"].dropna().tolist()
-                with step_col4: st.success(f"✅ 총 {len(mach_list)}대의 설비 확인됨")
+                with step_col4: 
+                    st.success(f"✅ 총 {len(mach_list)}대의 설비 확인됨")
 
                 st.markdown(f"<h4 style='color: #6B8E7B; margin: 30px 0 15px; font-weight: 700;'>4️⃣ 정비 대상 기기 선택</h4>", unsafe_allow_html=True)
                 img_cols = st.columns(4, gap="medium")
@@ -501,20 +501,20 @@ def render_setup_screen():
                         else:
                             st.markdown("""<div style="width:100%; aspect-ratio:16/9; background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:8px; margin-bottom:12px; display:flex; justify-content:center; align-items:center;"><span style="color:#94A3B8; font-size:0.8rem;">사진 없음</span></div>""", unsafe_allow_html=True)
                         
-                        if st.button(f"⚙️ {mach_name}", key=f"btn_mach_{i}", use_container_width=True):
+                        if st.button(f"⚙️ {mach_name}", key=f"btn_mach_{selected_factory}_{selected_dept}_{selected_line}_{i}", use_container_width=True):
                             st.session_state.user_team = f"{selected_factory} / {selected_dept} / {selected_line}"
                             st.session_state.user_machine = mach_name
                             st.session_state.auth_step = "main_app"
                             st.rerun()
         
         st.markdown("<hr style='border-color: #E2E8F0; margin: 30px 0;'>", unsafe_allow_html=True)
-        if st.button("🚪 로그아웃", use_container_width=True):
+        if st.button("🚪 로그아웃", use_container_width=True, key="logout_btn_setup"):
             auth_sign_out()
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================================
-# 탭 1 ~ 5 (기존 정비 기능)
+# 탭 1 ~ 5 (정비 기능)
 # ======================================================================
 def render_tab_parts(mach_df, selected_mach):
     if not is_authenticated(): return
