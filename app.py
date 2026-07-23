@@ -420,7 +420,8 @@ def render_manager_dashboard(all_parts_df):
                     """
                     st.markdown(card_html, unsafe_allow_html=True)
                     
-                    if st.button(f"🔍 점검하기", key=f"mgr_btn_{mach_name}_{i}", use_container_width=True):
+                    # key에 부서(dept)와 라인(line)을 포함시켜 중복 충돌을 원천 차단합니다.
+                    if st.button(f"🔍 점검하기", key=f"mgr_btn_{dept}_{line}_{mach_name}_{i}", use_container_width=True):
                         st.session_state.user_team = f"관제센터 ({dept})"
                         st.session_state.user_machine = mach_name
                         st.session_state.auth_step = "main_app"
