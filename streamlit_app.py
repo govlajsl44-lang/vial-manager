@@ -32,9 +32,11 @@ except Exception:  # pragma: no cover
     create_client = None
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 except Exception:  # pragma: no cover
     genai = None
+    types = None
 
 from PIL import Image
 
@@ -43,7 +45,9 @@ from PIL import Image
 # =====================================================================
 DEFAULT_SUPABASE_URL = "https://mpbcsmckmyjjelyfxiuk.supabase.co"
 DEFAULT_SUPABASE_KEY = "sb_publishable_HugvgLttufNx1DYgDvdkvw_Mm1uc-i8"
-GEMINI_MODEL = "gemini-1.5-flash"
+# 모델명은 secrets.toml의 GEMINI_MODEL로 덮어쓸 수 있습니다.
+# (gemini-1.5-flash는 서비스 종료되어 404가 납니다)
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 
 TEAMS = {
     "부여공장": ["제품 1팀", "제품 2팀", "시설에너지 관리팀", "공정개선팀", "지원팀", "산업안전 보건팀"],
@@ -106,6 +110,17 @@ sb = get_supabase()
 
 def gemini_key():
     return st.session_state.get("gemini_key") or secret("GEMINI_API_KEY", "")
+
+
+def gemini_model_name():
+    return secret("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+
+
+def gemini_client(key):
+    """google-genai 클라이언트. 라이브러리가 없으면 None."""
+    if genai is None:
+        return None
+    return genai.Client(api_key=key)
 
 
 # =====================================================================
@@ -561,17 +576,24 @@ def page_ai():
             st.image(up, use_container_width=True)
         if st.button("🔬 진단 시작", type="primary", disabled=not (up and key)):
             if genai is None:
-                st.error("google-generativeai 라이브러리가 없습니다.")
+                st.error("google-genai 라이브러리가 없습니다. `pip install google-genai` 후 다시 실행하세요.")
             else:
                 try:
-                    genai.configure(api_key=key)
-                    model = genai.GenerativeModel(GEMINI_MODEL)
+                    client = gemini_client(key)
                     img = Image.open(up)
+                    buf = BytesIO()
+                    img.convert("RGB").save(buf, format="JPEG", quality=90)
                     prompt = (f"이 사진은 [{ctx}] 기계의 부품 또는 상태를 찍은 것입니다. "
                               f"현재 상태를 진단하고 파손·마모·이상 증상이 있는지 한국어로 전문적으로 "
                               f"설명하고, 권장 조치를 제시해주세요.")
                     with st.spinner("Gemini가 이미지를 분석 중…"):
-                        res = model.generate_content([prompt, img])
+                        res = client.models.generate_content(
+                            model=gemini_model_name(),
+                            contents=[
+                                types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
+                                prompt,
+                            ],
+                        )
                     st.markdown('<div class="kgc-card" style="border-top:4px solid ' + GREEN + '">'
                                 '<b>✅ AI 진단 결과</b></div>', unsafe_allow_html=True)
                     st.write(res.text)
@@ -591,14 +613,14 @@ def page_ai():
                 st.session_state.chat.append(("ai", "⚠️ Gemini API 키를 먼저 설정해주세요."))
             else:
                 try:
-                    genai.configure(api_key=key)
-                    model = genai.GenerativeModel(GEMINI_MODEL)
+                    client = gemini_client(key)
                     history = "\n".join(f"{r}: {t}" for r, t in st.session_state.chat[:-1])
                     prompt = (f"너는 공장 설비 [{ctx}] 전문 엔지니어이자 정비 도우미야. "
                               f"작업자의 질문에 친절하고 전문적으로 한국어로 대답해줘.\n\n"
                               f"이전 대화:\n{history}\n\n사용자: {q}")
                     with st.spinner("답변 생성 중…"):
-                        res = model.generate_content(prompt)
+                        res = client.models.generate_content(
+                            model=gemini_model_name(), contents=prompt)
                     st.session_state.chat.append(("ai", res.text))
                 except Exception as e:
                     st.session_state.chat.append(("ai", f"⚠️ 오류: {e}"))
