@@ -1,3 +1,25 @@
+"""
+KGC Smart MRO — Streamlit 앱 (Supabase + Google Gemini 실연동)
+===============================================================
+GitHub → Streamlit Community Cloud 배포용 단일 파이썬 앱.
+
+■ 실행
+    pip install -r requirements.txt
+    streamlit run streamlit_app.py
+
+■ 비밀값 설정 (.streamlit/secrets.toml 또는 Streamlit Cloud의 Secrets 메뉴)
+    SUPABASE_URL = "https://xxxx.supabase.co"
+    SUPABASE_KEY = "publishable/anon key"
+    GEMINI_API_KEY = "AIza..."          # 선택: 없으면 앱 안에서 입력
+  → secrets가 없으면 아래 기본값을 사용합니다.
+
+■ Supabase 테이블
+    machines(id, factory, dept, line, machine_name, machine_image_url, sop_url, created_at)
+    spare_parts(id, machine_name, part_name, spec, life_m, stock)
+    maintenance_logs(id, log_date, machine_name, part_name, worker_name, content)
+  ※ anon 키가 노출되므로 RLS 정책을 반드시 설정하세요.
+"""
+
 import datetime as dt
 from io import BytesIO
 
@@ -73,14 +95,28 @@ def secret(key, default=""):
         return default
 
 
-@st.cache_resource(show_spinner=False)
+def supa_config():
+    return (secret("SUPABASE_URL", DEFAULT_SUPABASE_URL),
+            secret("SUPABASE_KEY", DEFAULT_SUPABASE_KEY))
+
+
 def get_supabase() -> "Client":
-    url = secret("SUPABASE_URL", DEFAULT_SUPABASE_URL)
-    key = secret("SUPABASE_KEY", DEFAULT_SUPABASE_KEY)
+    """접속자(세션)마다 별도 클라이언트를 만든다.
+
+    주의: 여기에 @st.cache_resource 를 쓰면 클라이언트가 모든 접속자에게 공유되어
+    로그인 세션이 서로 섞인다. (원래 코드의 버그)
+    """
     if create_client is None:
         st.error("supabase 라이브러리가 없습니다. `pip install supabase` 후 다시 실행하세요.")
         st.stop()
-    return create_client(url, key)
+    if "sb_client" not in st.session_state:
+        url, key = supa_config()
+        try:
+            st.session_state.sb_client = create_client(url, key)
+        except Exception as e:
+            st.error(f"Supabase 클라이언트 생성 실패 — {type(e).__name__}: {e}")
+            st.stop()
+    return st.session_state.sb_client
 
 
 sb = get_supabase()
@@ -232,6 +268,60 @@ def restore_session():
         pass
 
 
+def login_hint(err):
+    """Supabase 에러 메시지를 한국어 조치 안내로 바꾼다."""
+    msg = str(err).lower()
+    if "invalid api key" in msg or "no api key" in msg:
+        return ("**API 키 문제입니다.** Supabase 대시보드 → Settings → API Keys 에서 키를 다시 복사하세요. "
+                "새 형식(`sb_publishable_…`)이 파이썬 클라이언트에서 거부되는 사례가 있으니, "
+                "이 경우 Legacy anon 키(`eyJ…`로 시작)로 바꿔 시도해 보세요.")
+    if "email not confirmed" in msg or "not confirmed" in msg:
+        return ("**이메일 인증이 안 된 계정입니다.** Supabase → Authentication → Users 에서 해당 계정을 "
+                "확인 처리하거나, Authentication → Sign In / Providers → Email 에서 "
+                "'Confirm email' 옵션을 끄세요.")
+    if "invalid login credentials" in msg:
+        return ("**계정 또는 비밀번호 불일치입니다.** Supabase → Authentication → Users 에 해당 이메일이 "
+                "실제로 있는지 확인하세요. HTML 버전에서 가입한 계정이라면 같은 프로젝트인지도 확인이 필요합니다.")
+    if "rate limit" in msg or "too many" in msg:
+        return "**요청 제한**에 걸렸습니다. 몇 분 뒤 다시 시도하세요."
+    if "timeout" in msg or "connect" in msg or "name resolution" in msg:
+        return "**네트워크 연결 실패**입니다. SUPABASE_URL 값이 정확한지 확인하세요."
+    return None
+
+
+def connection_panel():
+    """로그인 화면 하단 진단 패널."""
+    with st.expander("🛠 연결 진단 (문제가 있을 때 열어보세요)"):
+        url, key = supa_config()
+        from_secrets = bool(secret("SUPABASE_URL", "")) and bool(secret("SUPABASE_KEY", ""))
+        if key.startswith("sb_publishable_"):
+            ktype = "새 형식 publishable 키"
+        elif key.startswith("sb_secret_"):
+            ktype = "⚠️ secret 키 — 클라이언트에 쓰면 안 됩니다"
+        elif key.startswith("eyJ"):
+            ktype = "Legacy anon(JWT) 키"
+        else:
+            ktype = "알 수 없는 형식"
+
+        st.write(f"- URL: `{url}`")
+        st.write(f"- 키 종류: {ktype} (`{key[:16]}…`, 길이 {len(key)})")
+        st.write(f"- Secrets 사용: {'예' if from_secrets else '아니오 — 코드의 기본값 사용 중'}")
+
+        if st.button("Auth 서버 연결 테스트"):
+            try:
+                import httpx
+                r = httpx.get(f"{url}/auth/v1/settings",
+                              headers={"apikey": key, "Authorization": f"Bearer {key}"},
+                              timeout=10)
+                if r.status_code == 200:
+                    st.success("연결 성공 — URL·키 모두 정상입니다. 문제는 계정 쪽입니다.")
+                    st.json(r.json())
+                else:
+                    st.error(f"HTTP {r.status_code} — {r.text[:300]}")
+            except Exception as e:
+                st.error(f"연결 실패 — {type(e).__name__}: {e}")
+
+
 def login_view():
     st.markdown(f"""
     <div style="text-align:center;margin:10px 0 22px">
@@ -252,11 +342,17 @@ def login_view():
             else:
                 try:
                     res = sb.auth.sign_in_with_password({"email": email.strip(), "password": pw})
-                    st.session_state.user = profile_from(res.user)
-                    load_all()
-                    st.rerun()
-                except Exception:
-                    st.error("로그인 실패: 아이디/비밀번호를 확인하세요.")
+                    if not getattr(res, "user", None):
+                        st.error("로그인 실패: 서버가 사용자 정보를 반환하지 않았습니다.")
+                    else:
+                        st.session_state.user = profile_from(res.user)
+                        load_all()
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"로그인 실패 — {type(e).__name__}: {e}")
+                    hint = login_hint(e)
+                    if hint:
+                        st.info(hint)
 
     with tab_signup:
         name = st.text_input("성명", key="su_name", placeholder="홍길동")
@@ -276,8 +372,12 @@ def login_view():
                     })
                     st.success("회원가입 완료! [로그인] 탭에서 로그인하세요. (이메일 인증이 필요할 수 있습니다)")
                 except Exception as e:
-                    st.error(f"가입 실패: {e}")
+                    st.error(f"가입 실패 — {type(e).__name__}: {e}")
+                    hint = login_hint(e)
+                    if hint:
+                        st.info(hint)
 
+    connection_panel()
     st.caption("KGC 인삼공사 · © 2026 Korea Ginseng Corporation")
 
 
@@ -700,9 +800,9 @@ def page_profile():
     <div style="text-align:center;margin-bottom:16px">
       <div style="width:70px;height:70px;margin:0 auto;border-radius:20px;
         background:linear-gradient(135deg,{GREEN},{LIME});color:#fff;font-size:28px;font-weight:800;
-        display:flex;align-items:center;justify-content:center">{{u['name'][:1]}}</div>
-      <div style="font-size:19px;font-weight:800;margin-top:10px">{{u['name']}}</div>
-      <div style="color:#6C776F;font-size:13px">{{worker_tag()}}</div>
+        display:flex;align-items:center;justify-content:center">{u['name'][:1]}</div>
+      <div style="font-size:19px;font-weight:800;margin-top:10px">{u['name']}</div>
+      <div style="color:#6C776F;font-size:13px">{worker_tag()}</div>
     </div>""", unsafe_allow_html=True)
     st.markdown(f"- **소속 공장** : {u['factory'] or '-'}")
     st.markdown(f"- **담당 팀** : {u['dept'] or '-'}")
