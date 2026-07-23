@@ -209,7 +209,7 @@ def init_session_state():
         if key not in st.session_state:
             st.session_state[key] = value
 
-# 로그인 전용 스타일 (정관장 배경 사진 + 깔끔한 불투명 박스)
+# 로그인 전용 스타일 (정관장 배경 사진 + 깔끔한 불투명 박스 + 드롭다운 글씨 검은색 고정)
 def render_login_css(encoded_bg):
     st.markdown(
         f"""
@@ -232,10 +232,16 @@ def render_login_css(encoded_bg):
             margin-top: 5vh;
         }}
         
-        h1, h2, h3, h4, p, span, label, div {{ color: #F8FAFC !important; font-family: 'Pretendard', sans-serif; }}
+        .styled-card h1, .styled-card h2, .styled-card h3, .styled-card h4, .styled-card p, .styled-card span, .styled-card label {{ color: #F8FAFC !important; font-family: 'Pretendard', sans-serif; }}
         
         div[data-baseweb="input"] {{ background-color: #1E1E24 !important; border: 1px solid #4A4A55 !important; border-radius: 8px !important; }}
         div[data-baseweb="input"] input {{ color: #FFFFFF !important; }}
+        
+        /* ⭐️ 셀렉트박스 및 드롭다운 팝업 메뉴 글씨를 검은색으로 명확하게 지정 */
+        div[data-baseweb="select"] * {{ color: #1E293B !important; }}
+        div[data-baseweb="popover"] *, ul[data-baseweb="menu"] *, li[data-baseweb="option"] * {{
+            color: #1E293B !important;
+        }}
         
         div[data-testid="stButton"] button {{ border-radius: 8px !important; font-weight: bold; background-color: #3B82F6 !important; color: white !important; border: none !important; }}
         div[data-testid="stButton"] button:hover {{ background-color: #2563EB !important; }}
@@ -425,7 +431,7 @@ def render_manager_dashboard(all_parts_df):
                         st.rerun()
 
 # ======================================================================
-# 라우팅(공정 선택) 화면 (마스터 전용 상자 완전 삭제 및 권한별 공정/부서 처리)
+# 라우팅(공정 선택) 화면
 # ======================================================================
 def render_setup_screen():
     if not is_authenticated(): return require_login_message()
@@ -450,12 +456,10 @@ def render_setup_screen():
                 st.rerun()
             return st.markdown("</div>", unsafe_allow_html=True)
 
-        # 1️⃣ 소속 공장 선택
         step_col1, step_col2 = st.columns(2)
         with step_col1:
             factory_options = ["선택해주세요"] + sorted(df_machines["factory"].dropna().unique().tolist())
             selected_factory = st.selectbox("1️⃣ 소속 공장", factory_options)
-            
         with step_col2:
             if selected_factory != "선택해주세요":
                 dept_options = ["선택해주세요"] + sorted(df_machines[df_machines["factory"] == selected_factory]["dept"].dropna().unique().tolist())
@@ -463,9 +467,7 @@ def render_setup_screen():
             else: 
                 selected_dept = "선택해주세요"
 
-        # 2️⃣ 부서 선택 시 처리 (시설부 선택 혹은 관리자일 경우 관제센터로 연결 가능)
         if selected_dept != "선택해주세요":
-            # 만약 사용자가 '시설에너지관리팀'을 선택했거나 마스터 관리자인 경우 관제 센터 입장 버튼 제공
             if selected_dept == "시설에너지관리팀" or is_manager():
                 st.markdown("""
                     <div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 6px solid #6B8E7B;">
@@ -478,17 +480,13 @@ def render_setup_screen():
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
 
-            # 일반 라인/기기 선택 로직
             line_options = ["선택해주세요"] + sorted(df_machines[(df_machines["factory"] == selected_factory) & (df_machines["dept"] == selected_dept)]["line"].dropna().unique().tolist())
-            
             step_col3, step_col4 = st.columns(2)
             with step_col3:
                 selected_line = st.selectbox("3️⃣ 생산 라인", line_options)
-                
             if selected_line != "선택해주세요":
                 mach_list = df_machines[(df_machines["factory"] == selected_factory) & (df_machines["dept"] == selected_dept) & (df_machines["line"] == selected_line)]["machine_name"].dropna().tolist()
-                with step_col4: 
-                    st.success(f"✅ 총 {len(mach_list)}대의 설비 확인됨")
+                with step_col4: st.success(f"✅ 총 {len(mach_list)}대의 설비 확인됨")
 
                 st.markdown(f"<h4 style='color: #6B8E7B; margin: 30px 0 15px; font-weight: 700;'>4️⃣ 정비 대상 기기 선택</h4>", unsafe_allow_html=True)
                 img_cols = st.columns(4, gap="medium")
