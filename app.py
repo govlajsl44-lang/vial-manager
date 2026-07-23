@@ -82,7 +82,7 @@ AMBER = "#D99A2E"
 RED = "#D1453B"
 
 st.set_page_config(page_title="KGC Smart MRO", page_icon="🌿", layout="centered",
-                   initial_sidebar_state="collapsed")
+                   initial_sidebar_state="expanded")
 
 
 # =====================================================================
@@ -190,7 +190,7 @@ st.markdown(f"""
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
   html, body, [class*="css"] {{ font-family:'Pretendard Variable',Pretendard,system-ui,sans-serif; }}
   #MainMenu, footer {{ visibility:hidden; }}
-  .block-container {{ padding-top:1.2rem; max-width:720px; }}
+  .block-container {{ padding-top:3.5rem; max-width:720px; }}
   .kgc-hero {{ background:linear-gradient(135deg,{DEEP},#0B3D23); color:#fff; border-radius:18px;
       padding:20px 22px; margin-bottom:14px; }}
   .kgc-card {{ background:#fff; border:1px solid #E7EAE4; border-radius:16px; padding:16px; margin-bottom:10px; }}
@@ -367,7 +367,7 @@ def connection_panel():
 def login_view():
     st.markdown(f"""
     <div style="text-align:center;margin:10px 0 22px">
-      <div style="font-size:40px;font-weight:800;color:{DEEP};line-height:1">KGC</div>
+      <div style="font-size:40px;font-weight:800;color:{DEEP};line-height:1.3;padding-top:6px">KGC</div>
       <div style="font-size:28px;font-weight:700"><span style="color:{LIME}">Smart</span>
         <span style="color:{AMBER}">MRO</span></div>
       <div style="color:#6C776F;font-size:13px;margin-top:6px">스마트 설비 정비 관리 시스템</div>
@@ -870,6 +870,13 @@ def main():
         return
 
     u = user()
+
+    # 사이드바를 못 여는 환경(화면 잘림·모바일)을 대비해 본문에도 메뉴를 둔다
+    top = st.columns([3, 1])
+    top[0].caption(f"{u['name']} · {u['factory']} · {u['dept']}")
+    if top[1].button("로그아웃", use_container_width=True, key="top_logout"):
+        logout()
+
     st.sidebar.markdown(f"### KGC Smart MRO")
     st.sidebar.caption(f"{u['name']} · {u['factory']} · {u['dept']}")
 
@@ -881,6 +888,7 @@ def main():
     if default not in pages:
         default = "홈"
     nav = st.sidebar.radio("메뉴", pages, index=pages.index(default))
+    nav = st.selectbox("메뉴 이동", pages, index=pages.index(nav), key="top_nav")
     st.session_state.nav = nav
 
     st.sidebar.divider()
