@@ -1,25 +1,3 @@
-"""
-KGC Smart MRO — Streamlit 앱 (Supabase + Google Gemini 실연동)
-===============================================================
-GitHub → Streamlit Community Cloud 배포용 단일 파이썬 앱.
-
-■ 실행
-    pip install -r requirements.txt
-    streamlit run streamlit_app.py
-
-■ 비밀값 설정 (.streamlit/secrets.toml 또는 Streamlit Cloud의 Secrets 메뉴)
-    SUPABASE_URL = "https://xxxx.supabase.co"
-    SUPABASE_KEY = "publishable/anon key"
-    GEMINI_API_KEY = "AIza..."          # 선택: 없으면 앱 안에서 입력
-  → secrets가 없으면 아래 기본값을 사용합니다.
-
-■ Supabase 테이블
-    machines(id, factory, dept, line, machine_name, machine_image_url, sop_url, created_at)
-    spare_parts(id, machine_name, part_name, spec, life_m, stock)
-    maintenance_logs(id, log_date, machine_name, part_name, worker_name, content)
-  ※ anon 키가 노출되므로 RLS 정책을 반드시 설정하세요.
-"""
-
 import datetime as dt
 from io import BytesIO
 
@@ -722,9 +700,9 @@ def page_profile():
     <div style="text-align:center;margin-bottom:16px">
       <div style="width:70px;height:70px;margin:0 auto;border-radius:20px;
         background:linear-gradient(135deg,{GREEN},{LIME});color:#fff;font-size:28px;font-weight:800;
-        display:flex;align-items:center;justify-content:center">{u['name'][:1]}</div>
-      <div style="font-size:19px;font-weight:800;margin-top:10px">{u['name']}</div>
-      <div style="color:#6C776F;font-size:13px">{worker_tag()}</div>
+        display:flex;align-items:center;justify-content:center">{{u['name'][:1]}}</div>
+      <div style="font-size:19px;font-weight:800;margin-top:10px">{{u['name']}}</div>
+      <div style="color:#6C776F;font-size:13px">{{worker_tag()}}</div>
     </div>""", unsafe_allow_html=True)
     st.markdown(f"- **소속 공장** : {u['factory'] or '-'}")
     st.markdown(f"- **담당 팀** : {u['dept'] or '-'}")
